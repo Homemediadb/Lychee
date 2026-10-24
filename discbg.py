@@ -10,6 +10,7 @@ from scipy.optimize import least_squares
 FEATHER = 2.0
 ROUND = 0.01
 COLOR = 0.08
+HOLE = 15 / 120
 
 
 def ell_dist(p, x, y):
@@ -111,9 +112,32 @@ def remove_background(rgb):
     ex, ey = disc_points(lum, np.ptp(img / light, axis=-1), outer, 1 + 2 / R, 0.9, t)
     outer = fit_ellipse(ex, ey, outer)
 
+    s0 = 0.03
+    prof, X, Y, ok = rays(lum, outer, s0, 0.3, 720)
+    feat = sudden(ndi.gaussian_filter1d(prof, 2, axis=0, mode="wrap"), t) & ok[:, None]
+    seen = ndi.maximum_filter1d(feat.astype(float), 5, axis=1).mean(0)
+    s = s0 + np.arange(len(seen)) / R
+    rings = [k for k in range(1, len(seen) - 1) if seen[k] >= max(seen[k - 1], seen[k + 1], 0.2)]
+    strong = [k for k in rings if seen[k] >= 0.5]
+    near = [k for k in rings if abs(s[k] / HOLE - 1) < 0.15]
+    k = strong[0] if strong and s[strong[0]] < 1.25 * HOLE else max(near, key=lambda k: seen[k], default=None)
+
+    def ring(k):
+        d = np.where(feat, np.abs(np.arange(len(seen)) - k), np.inf)
+        j, has = d.argmin(1), d.min(1) <= 0.02 * R
+        return fit_ellipse(X[has, j[has]], Y[has, j[has]], (*outer[:2], s[k] * R, *outer[3:]))
+
+    hole = ring(k) if k is not None else (*outer[:2], HOLE * R, *outer[3:])
+
     xx, yy = np.meshgrid(np.arange(w, dtype=float), np.arange(h, dtype=float))
     cover = np.clip(0.5 - ell_dist(outer, xx, yy) / FEATHER, 0, 1)
-    base = light
+    d_in = ell_dist(hole, xx, yy)
+    cover *= np.clip(0.5 + d_in / FEATHER, 0, 1)
+    paper = d_in < -0.15 * hole[2]
+    plane = np.c_[np.ones(paper.sum()), xx[paper], yy[paper]]
+    lit = np.linalg.lstsq(plane, img[paper], rcond=None)[0]
+    lid = lit[0] + xx[..., None] * lit[1] + yy[..., None] * lit[2]
+    base = np.where((d_in < 0)[..., None], lid, light)
     dark = np.clip((base - img) / np.maximum(base, 1), 0, 1).max(-1)
     a = np.clip((dark - t) / (1 - t), 0, 1)
     with np.errstate(divide="ignore", invalid="ignore"):
