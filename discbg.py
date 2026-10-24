@@ -83,12 +83,16 @@ def remove_background(rgb):
 
     k = max(4, min(h, w) // 40)
     corners = [img[:k, :k], img[:k, -k:], img[-k:, :k], img[-k:, -k:]]
-    white = np.median([np.median(c.reshape(-1, 3), 0) for c in corners], 0)
-    if white.min() < 150:
+    color = np.array([np.median(c.reshape(-1, 3), 0) for c in corners])
+    spread = np.array([c.reshape(-1, 3).std(0).max() for c in corners])
+    bg = (color.min(1) > 150) & (spread <= max(2 * spread.min(), spread.min() + 2))
+    if not bg.any():
         raise ValueError("corners are not a light background")
-    t = max(0.015, 4 * np.median([c.reshape(-1, 3).std(0).max() for c in corners]) / 255)
+    white = np.median(color[bg], 0)
+    t = max(0.015, 4 * spread.min() / 255)
     lab, _ = ndi.label((np.abs(img / white - 1).max(-1) <= 3 * t))
-    from_corners = np.isin(lab, np.setdiff1d([lab[0, 0], lab[0, -1], lab[-1, 0], lab[-1, -1]], [0]))
+    seeds = np.array([lab[0, 0], lab[0, -1], lab[-1, 0], lab[-1, -1]])[bg]
+    from_corners = np.isin(lab, np.setdiff1d(seeds, [0]))
     yy, xx = np.mgrid[:h, :w] / max(h, w)
     P = np.stack([np.ones_like(xx), xx, yy, xx * xx, xx * yy, yy * yy], -1)
     light = P @ np.linalg.lstsq(P[from_corners][::7], img[from_corners][::7], rcond=None)[0]
