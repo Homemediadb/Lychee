@@ -78,7 +78,7 @@ def disc_points(lum, tint, p, s0, s1, t):
     return X[ok, k[ok]], Y[ok, k[ok]]
 
 
-def matte(rgb):
+def matte(rgb, black=None):
     img = rgb.astype(float)
     h, w, _ = img.shape
 
@@ -136,22 +136,34 @@ def matte(rgb):
 
     xx, yy = np.meshgrid(np.arange(w, dtype=float), np.arange(h, dtype=float))
     cover = np.clip(0.5 - ell_dist(outer, xx, yy) / FEATHER, 0, 1)
-    d_in = ell_dist(hole, xx, yy)
-    cover *= np.clip(0.5 + d_in / FEATHER, 0, 1)
-    paper = d_in < -0.15 * hole[2]
-    plane = np.c_[np.ones(paper.sum()), xx[paper], yy[paper]]
-    lit = np.linalg.lstsq(plane, img[paper], rcond=None)[0]
-    lid = lit[0] + xx[..., None] * lit[1] + yy[..., None] * lit[2]
-    base = np.where((d_in < 0)[..., None], lid, light)
-    floor = np.where(d_in < 0, t, t + FAINT)
+    base, floor = light, np.full((h, w), t + FAINT)
+    if black is None:
+        d_in = ell_dist(hole, xx, yy)
+        cover *= np.clip(0.5 + d_in / FEATHER, 0, 1)
+        paper = d_in < -0.15 * hole[2]
+        plane = np.c_[np.ones(paper.sum()), xx[paper], yy[paper]]
+        lit = np.linalg.lstsq(plane, img[paper], rcond=None)[0]
+        lid = lit[0] + xx[..., None] * lit[1] + yy[..., None] * lit[2]
+        base = np.where((d_in < 0)[..., None], lid, light)
+        floor = np.where(d_in < 0, t, floor)
     dark = np.clip((base - img) / np.maximum(base, 1), 0, 1).max(-1)
     a = np.clip((dark - floor) / (1 - floor), 0, 1)
     with np.errstate(divide="ignore", invalid="ignore"):
         ink = np.nan_to_num(np.clip((img - (1 - a[..., None]) * base) / a[..., None], 0, 255))
-    solid, shade = cover == 1, (1 - cover) * a
+    disc, fg = np.ones((h, w)), img
+    if black is not None:
+        blk = black.astype(float)
+        if blk.shape != img.shape:
+            raise ValueError("black scan is not the same size as the white one")
+        shows = ((img - blk) / np.maximum(light - np.median(blk[bgm], 0), 1)).mean(-1)
+        disc = np.clip((1 - shows - t) / (1 - 2 * t), 0, 1)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            fg = np.nan_to_num(np.clip((img - (1 - disc[..., None]) * light) / disc[..., None], 0, 255))
+    solid, shade = (cover == 1) & (disc == 1), (1 - cover) * a
+    cover = cover * disc
     with np.errstate(divide="ignore", invalid="ignore"):
         alpha = cover + shade
-        col = (cover[..., None] * img + shade[..., None] * ink) / alpha[..., None]
+        col = (cover[..., None] * fg + shade[..., None] * ink) / alpha[..., None]
     out = np.dstack([np.nan_to_num(col), alpha * 255]).round().clip(0, 255).astype(np.uint8)
     out[solid, :3] = rgb[solid]
     out[out[..., 3] == 0, :3] = 0
@@ -179,19 +191,23 @@ def trim(out, p):
     return box
 
 
-def remove_background(rgb):
-    return trim(*matte(rgb))
+def remove_background(rgb, black=None):
+    return trim(*matte(rgb, black))
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("images", nargs="+", type=Path)
+    p.add_argument("-b", "--black", nargs="+", type=Path, help="the same scans over black, in order")
     p.add_argument("-o", "--outdir", type=Path)
     args = p.parse_args()
+    if args.black and len(args.black) != len(args.images):
+        p.error("give one --black scan per image")
     ok = True
-    for f in args.images:
+    load = lambda f: np.asarray(Image.open(f).convert("RGB"))
+    for f, b in zip(args.images, args.black or [None] * len(args.images)):
         try:
-            out = remove_background(np.asarray(Image.open(f).convert("RGB")))
+            out = remove_background(load(f), b and load(b))
         except ValueError as e:
             print(f"{f}: skipped, {e}", file=sys.stderr)
             ok = False
