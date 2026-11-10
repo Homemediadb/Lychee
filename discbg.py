@@ -10,6 +10,7 @@ from scipy.optimize import least_squares
 FEATHER = 2.0
 ROUND = 0.01
 COLOR = 0.08
+FAINT = 0.03
 HOLE = 15 / 120
 
 
@@ -77,7 +78,7 @@ def disc_points(lum, tint, p, s0, s1, t):
     return X[ok, k[ok]], Y[ok, k[ok]]
 
 
-def remove_background(rgb):
+def matte(rgb):
     img = rgb.astype(float)
     h, w, _ = img.shape
 
@@ -142,8 +143,9 @@ def remove_background(rgb):
     lit = np.linalg.lstsq(plane, img[paper], rcond=None)[0]
     lid = lit[0] + xx[..., None] * lit[1] + yy[..., None] * lit[2]
     base = np.where((d_in < 0)[..., None], lid, light)
+    floor = np.where(d_in < 0, t, t + FAINT)
     dark = np.clip((base - img) / np.maximum(base, 1), 0, 1).max(-1)
-    a = np.clip((dark - t) / (1 - t), 0, 1)
+    a = np.clip((dark - floor) / (1 - floor), 0, 1)
     with np.errstate(divide="ignore", invalid="ignore"):
         ink = np.nan_to_num(np.clip((img - (1 - a[..., None]) * base) / a[..., None], 0, 255))
     solid, shade = cover == 1, (1 - cover) * a
@@ -153,7 +155,32 @@ def remove_background(rgb):
     out = np.dstack([np.nan_to_num(col), alpha * 255]).round().clip(0, 255).astype(np.uint8)
     out[solid, :3] = rgb[solid]
     out[out[..., 3] == 0, :3] = 0
-    return out
+    return out, outer
+
+
+def trim(out, p):
+    vis = out[..., 3] > 0
+    lab, _ = ndi.label(vis)
+    xx, yy = np.meshgrid(np.arange(out.shape[1], dtype=float), np.arange(out.shape[0], dtype=float))
+    on_disc = np.unique(lab[vis & (ell_dist(p, xx, yy) <= 0)])
+    keep = np.isin(lab, on_disc[on_disc > 0])
+    out = np.where(keep[..., None], out, 0).astype(np.uint8)
+    ys, xs = np.nonzero(keep)
+    cx, cy, r, e, th = p
+    s = 1 + ell_dist(p, xs, ys).max() / r
+    a, b = s * r * (1 + e), s * r * (1 - e)
+    hw = int(np.ceil(np.hypot(a * np.cos(th), b * np.sin(th)))) + 1
+    hh = int(np.ceil(np.hypot(a * np.sin(th), b * np.cos(th)))) + 1
+    x0, y0 = round(cx) - hw, round(cy) - hh
+    box = np.zeros((2 * hh + 1, 2 * hw + 1, 4), np.uint8)
+    h, w = out.shape[:2]
+    ty, tx = slice(max(y0, 0), min(y0 + 2 * hh + 1, h)), slice(max(x0, 0), min(x0 + 2 * hw + 1, w))
+    box[ty.start - y0:ty.stop - y0, tx.start - x0:tx.stop - x0] = out[ty, tx]
+    return box
+
+
+def remove_background(rgb):
+    return trim(*matte(rgb))
 
 
 def main():
