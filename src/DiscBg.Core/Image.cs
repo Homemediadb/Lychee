@@ -12,6 +12,10 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
     public byte[] Pixels { get; } = pixels ?? new byte[width * height * channels];
     public double? Dpi { get; } = dpi;
 
+    // Top left in the source scan; outside it where the crop was padded
+    public int OriginX { get; init; }
+    public int OriginY { get; init; }
+
     public static async Task<Image> LoadAsync(string path)
     {
         using var file = File.OpenRead(path);
