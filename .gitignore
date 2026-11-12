@@ -4,3 +4,15 @@
 __pycache__/
 *.py[cod]
 .venv/
+
+bin/
+obj/
+.vs/
+*.user
+dist/
+
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.bmp
