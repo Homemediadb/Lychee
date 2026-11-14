@@ -53,6 +53,14 @@ for (int i = 0; i < cut.Width * cut.Height; i++) sum2 += cut.Pixels[4 * i + 3];
 Check(cut.Width < N && cut.Height < N, "transparent margins must be cropped");
 Check(Math.Abs((double)sx / n - (cut.Width - 1) / 2.0) < 1 && Math.Abs((double)sy / n - (cut.Height - 1) / 2.0) < 1, "disc stays centered");
 Check(sum1 == sum2, "no visible pixel is lost");
+foreach (double? dpi in new double?[] { 1200, null })
+{
+    var file = Path.Combine(Path.GetTempPath(), $"discbg-check-{dpi}.png");
+    new Image(4, 4, 4, dpi: dpi).SavePngAsync(file).GetAwaiter().GetResult();
+    using (var read = File.OpenRead(file))
+        Check(Resolution.Read(read) is var got && (got is null ? dpi is null : Math.Abs(got.Value - dpi!.Value) < 0.1), $"resolution {dpi} round trip");
+    File.Delete(file);
+}
 Console.WriteLine("ok");
 
 static void Check(bool ok, string what)
