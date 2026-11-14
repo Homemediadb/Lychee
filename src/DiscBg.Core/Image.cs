@@ -20,6 +20,9 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
     {
         using var file = File.OpenRead(path);
         var decoder = await BitmapDecoder.CreateAsync(file.AsRandomAccessStream());
+        var codec = decoder.DecoderInformation.CodecId;
+        if (codec != BitmapDecoder.PngDecoderId && codec != BitmapDecoder.JpegDecoderId && codec != BitmapDecoder.WebpDecoderId && codec != BitmapDecoder.BmpDecoderId)
+            throw new InvalidDataException("not a PNG, JPEG, WebP or BMP image");
         var data = await decoder.GetPixelDataAsync(BitmapPixelFormat.Rgba8, BitmapAlphaMode.Straight, new BitmapTransform(),
             ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
         var rgba = data.DetachPixelData();
