@@ -1,0 +1,42 @@
+<Window x:Class="DiscBg.Gui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:DiscBg.Gui">
+    <Grid x:Name="Root" RowDefinitions="Auto,*" Background="Transparent">
+        <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <TitleBar x:Name="AppTitleBar">
+                <TitleBar.Resources>
+                    <!-- The template reserves a drag gap before the caption buttons -->
+                    <x:Double x:Key="TitleBarMinDragRegionWidth">0</x:Double>
+                    <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Left</HorizontalAlignment>
+                    <x:Double x:Key="TitleBarDeactivatedOpacity">1</x:Double>
+                </TitleBar.Resources>
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel x:Name="Brand" Orientation="Horizontal" Spacing="8" Padding="2,4,10,4" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <Image Source="ms-appx:///Assets/disc.png" Height="24" />
+                        <TextBlock Text="Disc BG Remover" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <TabView x:Name="Tabs" VerticalAlignment="Center" Background="Transparent" Visibility="Collapsed"
+                             CanReorderTabs="True" CanDragTabs="False"
+                             AddTabButtonClick="OnAddTab" TabCloseRequested="OnTabCloseRequested"
+                             SelectionChanged="OnTabSelectionChanged">
+                        <TabView.Resources>
+                            <Thickness x:Key="TabViewHeaderPadding">0</Thickness>
+                            <x:Double x:Key="TabViewItemHeaderFontSize">13</x:Double>
+                            <!-- Rounded on all corners: the selected tab's feet are hidden and its fill moved -->
+                            <SolidColorBrush x:Key="TabViewBorderBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="TabViewItemHeaderBackgroundSelected" Color="Transparent" />
+                            <Style TargetType="TabViewItem">
+                                <Setter Property="Background" Value="Transparent" />
+                            </Style>
+                        </TabView.Resources>
+                    </TabView>
+                </StackPanel>
+            </TitleBar>
+        </Border>
+
+        <Grid x:Name="PagesHost" Grid.Row="1" Background="Transparent">
+            <local:WelcomeView x:Name="Welcome" />
+        </Grid>
+    </Grid>
+</Window>

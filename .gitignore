@@ -12,3 +12,4 @@ dist/
 *.jpeg
 *.webp
 *.bmp
+!src/DiscBg.Gui/Assets/*.png

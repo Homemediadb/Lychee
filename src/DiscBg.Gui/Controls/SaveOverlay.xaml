@@ -1,0 +1,50 @@
+<UserControl x:Class="DiscBg.Gui.Controls.SaveOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Visibility="Collapsed">
+    <UserControl.Resources>
+        <Style x:Key="SavingBadge" TargetType="Grid">
+            <Setter Property="Background" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+        </Style>
+        <Style x:Key="SuccessBadge" TargetType="Grid">
+            <Setter Property="Background" Value="{ThemeResource SystemFillColorSuccessBrush}" />
+        </Style>
+        <Style x:Key="FailedBadge" TargetType="Grid">
+            <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBrush}" />
+        </Style>
+    </UserControl.Resources>
+    <Grid Background="{ThemeResource SmokeFillColorDefaultBrush}" TabFocusNavigation="Cycle" KeyDown="OnKeyDown">
+        <Border MinWidth="440" Margin="24" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="24" CornerRadius="8" BorderThickness="1"
+                Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}">
+            <StackPanel Spacing="12">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Grid x:Name="Badge" Width="32" Height="32" CornerRadius="16" Visibility="Collapsed">
+                        <FontIcon x:Name="BadgeIcon" FontSize="16" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                    </Grid>
+                    <TextBlock x:Name="TitleText" Grid.Column="1" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" TextLineBounds="Tight" AutomationProperties.LiveSetting="Assertive" />
+                    <Button x:Name="XButton" Grid.Column="2" Width="32" Height="32" Padding="0" Margin="0,-12,-12,0" VerticalAlignment="Top"
+                            Background="Transparent" BorderThickness="0" Click="OnX">
+                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                    </Button>
+                </Grid>
+                <TextBlock x:Name="FileText" HorizontalAlignment="Left" TextWrapping="Wrap" IsTextSelectionEnabled="True" FontWeight="SemiBold"
+                           SizeChanged="OnFileTextSizeChanged" />
+                <Grid x:Name="ProgressPanel" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="6" ColumnSpacing="12">
+                    <ProgressBar x:Name="Bar" Grid.ColumnSpan="2" Maximum="1" AutomationProperties.Name="Save progress" />
+                    <TextBlock x:Name="StageText" Grid.Row="1" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock x:Name="PercentText" Grid.Row="1" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Grid>
+                <ScrollViewer x:Name="DetailScroll" MaxHeight="280" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                    <TextBlock x:Name="DetailText" HorizontalAlignment="Left" MaxWidth="380" TextWrapping="Wrap" IsTextSelectionEnabled="True" Margin="0,0,12,0"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </ScrollViewer>
+                <Grid x:Name="Facts" ColumnDefinitions="Auto,*" ColumnSpacing="16" Visibility="Collapsed">
+                    <TextBlock x:Name="FactLabels" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock x:Name="FactValues" Grid.Column="1" IsTextSelectionEnabled="True" />
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
