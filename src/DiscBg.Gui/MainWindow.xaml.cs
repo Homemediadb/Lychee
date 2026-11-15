@@ -81,15 +81,16 @@ public sealed partial class MainWindow : Window
         ShowSelected();
     }
 
-    public async Task<IReadOnlyList<string>> PickScansAsync()
+    public async Task<IReadOnlyList<string>> PickScansAsync(bool multiple)
     {
         var picker = new FileOpenPicker();
         foreach (var type in ScanTypes) picker.FileTypeFilter.Add(type);
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
-        return [.. (await picker.PickMultipleFilesAsync()).Select(f => f.Path)];
+        if (multiple) return [.. (await picker.PickMultipleFilesAsync()).Select(f => f.Path)];
+        return await picker.PickSingleFileAsync() is { } file ? [file.Path] : [];
     }
 
-    async void PickFiles() => Open(await PickScansAsync());
+    async void PickFiles() => Open(await PickScansAsync(multiple: true));
 
     void OnAddTab(TabView sender, object args) => PickFiles();
 

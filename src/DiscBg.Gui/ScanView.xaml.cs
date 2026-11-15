@@ -12,9 +12,10 @@ namespace DiscBg.Gui;
 public sealed partial class ScanView : UserControl
 {
     readonly MainWindow owner;
-    Image? scan;
-    Task<Image>? removal;
-    bool showAfter = true, opening = true, closed;
+    Image? scan, black;
+    string? blackPath;
+    readonly Task<Image>?[] results = new Task<Image>?[2];
+    bool showAfter = true, opening = true, choosingBlack, closed;
     IEnumerable<Controls.StageView> Previews => Backdrops.Thumbnails.Prepend(Preview);
 
     public ScanView(MainWindow owner, string path)
@@ -32,6 +33,8 @@ public sealed partial class ScanView : UserControl
 
     public string Path { get; }
 
+    int Pass => black is not null ? 2 : 1;
+
     public SaveState SaveState
     {
         get => saveState;
@@ -39,18 +42,28 @@ public sealed partial class ScanView : UserControl
     }
     SaveState saveState;
 
-    public bool IsBusy => opening || SaveState == SaveState.Saving || removal is { IsCompleted: false };
+    public bool IsBusy => opening || choosingBlack || SaveState == SaveState.Saving || results.Any(r => r is { IsCompleted: false });
 
     public event Action? StateChanged;
 
     void UpdateState()
     {
-        bool loaded = scan is not null, free = loaded && SaveState != SaveState.Saving;
+        bool loaded = scan is not null, free = loaded && !choosingBlack && SaveState != SaveState.Saving;
+        int pass = Pass;
         BeforeButton.IsEnabled = AfterButton.IsEnabled = loaded;
         (BeforeButton.IsChecked, AfterButton.IsChecked) = (!showAfter, showAfter);
-        SaveButton.IsEnabled = free && removal is not { IsFaulted: true };
-        bool working = removal is { IsCompleted: false };
+        SaveButton.IsEnabled = free && results[pass - 1] is not { IsFaulted: true };
+        bool working = results[pass - 1] is { IsCompleted: false };
         (AfterRing.IsActive, AfterRing.Visibility) = (working, working ? Visibility.Visible : Visibility.Collapsed);
+        string? blackName = blackPath is null ? null : System.IO.Path.GetFileName(blackPath);
+        TwoPassButton.IsEnabled = free;
+        TwoPassButton.IsChecked = pass == 2;
+        TwoPassRing.IsActive = choosingBlack;
+        TwoPassIcon.Opacity = choosingBlack ? 0 : 1;
+        TwoPassText.Text = blackName is null ? "2-pass…" : $"2-pass: {blackName}";
+        TwoPassTip.Text = blackName is null
+            ? "2-pass: add the same disc scanned again with black paper behind it, without moving it or changing the scan settings. The difference between the two shows how see-through each part is, so the clear plastic becomes see-through too, not just the hole."
+            : $"2-pass with {blackPath} over black. Click to drop it and go back to 1-pass, where the hole is transparent and the clear plastic opaque.";
         StateChanged?.Invoke();
     }
 
@@ -89,14 +102,14 @@ public sealed partial class ScanView : UserControl
     public void Close()
     {
         closed = true;
-        scan = null;
+        (scan, black) = (null, null);
     }
 
-    Task<Image> Result()
+    Task<Image> Result(int p)
     {
-        if (removal is { } existing) return existing;
-        var s = scan!;
-        var job = removal = Task.Run(() => Remover.RemoveBackground(s));
+        if (results[p - 1] is { } existing) return existing;
+        var (s, b) = (scan!, p == 2 ? black : null);
+        var job = results[p - 1] = Task.Run(() => Remover.RemoveBackground(s, b));
         _ = job.ContinueWith(_ => UpdateState(), TaskScheduler.FromCurrentSynchronizationContext());
         return job;
     }
@@ -104,12 +117,13 @@ public sealed partial class ScanView : UserControl
     async Task Refresh()
     {
         if (scan is not { } opened) return;
+        int p = Pass;
         if (!showAfter) _ = Preview.ShowAsync(opened);
-        var job = Result();
+        var job = Result(p);
         if (!job.IsCompleted)
         {
             foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
-            SetStatus("Removing the background…");
+            SetStatus(p == 1 ? "Removing the background…" : "Removing the background, and matting the hole and clear plastic…");
         }
         UpdateState();
         Image result;
@@ -119,13 +133,13 @@ public sealed partial class ScanView : UserControl
         }
         catch (Exception ex)
         {
-            if (closed) return;
+            if (Pass != p || closed) return;
             foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.Clear("Could not remove the background");
             SetStatus(ex.Message);
             UpdateState();
             return;
         }
-        if (closed) return;
+        if (Pass != p || closed) return;
         SetStatus("");
         Preview.FitTo(result);
         await Task.WhenAll((showAfter ? Previews : Backdrops.Thumbnails).Select(v => v.ShowAsync(result)));
@@ -139,6 +153,47 @@ public sealed partial class ScanView : UserControl
         showAfter = after;
         if (changed) _ = Refresh();
         else UpdateState();
+    }
+
+    async void OnTwoPassClick(object sender, RoutedEventArgs e)
+    {
+        if (black is not null) (black, blackPath, results[1]) = (null, null, null);
+        else if (!await ChooseBlack())
+        {
+            UpdateState();
+            return;
+        }
+        await Refresh();
+    }
+
+    async Task<bool> ChooseBlack()
+    {
+        if (await owner.PickScansAsync(multiple: false) is not [var path] || scan is null) return false;
+        choosingBlack = true;
+        UpdateState();
+        SetStatus("Opening the black scan…");
+        try
+        {
+            var opened = await Task.Run(() => Image.LoadAsync(path));
+            if (opened.Width != scan.Width || opened.Height != scan.Height)
+            {
+                SetStatus($"{System.IO.Path.GetFileName(path)} is {opened.Width:N0} × {opened.Height:N0} px, not {scan.Width:N0} × {scan.Height:N0} like this scan: scan both the same way, without moving the disc.");
+                return false;
+            }
+            (black, blackPath, results[1]) = (opened, path, null);
+            SetStatus("");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Could not open {System.IO.Path.GetFileName(path)}: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            choosingBlack = false;
+            UpdateState();
+        }
     }
 
     internal static string Dpi(Image image) => image.Dpi is double dpi ? $"{dpi:0.##} dpi" : "dpi not recorded";
@@ -159,12 +214,13 @@ public sealed partial class ScanView : UserControl
         picker.FileTypeChoices.Add("PNG image", [".png"]);
         if (await picker.PickSaveFileAsync() is not { } file) return;
 
+        int p = Pass;
         SaveState = SaveState.Saving;
         var cancel = SaveOverlay.ShowProgress(file.Path);
         try
         {
-            SaveOverlay.Report(removal is { IsCompleted: true } ? "Writing the PNG…" : "Removing the background…", 0);
-            var result = await Result();
+            SaveOverlay.Report(results[p - 1] is { IsCompleted: true } ? "Writing the PNG…" : "Removing the background…", 0);
+            var result = await Result(p);
             cancel.ThrowIfCancellationRequested();
             SaveOverlay.Report("Writing the PNG…", 0);
             await Task.Run(() => result.SavePngAsync(file.Path));
@@ -176,9 +232,11 @@ public sealed partial class ScanView : UserControl
             }
             var facts = new List<(string, string?)>
             {
+                ("Mode", p == 1 ? "1-pass" : "2-pass"),
                 ("Size", $"{result.Width:N0} × {result.Height:N0} px"),
             };
             facts.Add(("Resolution", Dpi(result)));
+            if (p == 2) facts.Add(("Black scan", System.IO.Path.GetFileName(blackPath)));
             SaveOverlay.ShowDone(file.Path, [.. facts]);
             SaveState = SaveState.Saved;
         }

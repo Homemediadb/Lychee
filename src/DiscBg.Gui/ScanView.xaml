@@ -4,7 +4,7 @@
              xmlns:controls="using:DiscBg.Gui.Controls">
     <Grid RowDefinitions="Auto,*">
         <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-            <Grid x:Name="FileBar" Padding="12,10,16,10" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <Grid x:Name="FileBar" Padding="12,10,16,10" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <ToggleButton x:Name="BeforeButton" AutomationProperties.Name="Before" MinWidth="88" CornerRadius="4,0,0,4" Click="OnViewToggle"
                                   ToolTipService.ToolTip="The scan as opened">
@@ -18,17 +18,31 @@
                         </StackPanel>
                     </ToggleButton>
                 </StackPanel>
-                <StackPanel x:Name="InfoPanel" Grid.Column="1" VerticalAlignment="Center">
+                <ToggleButton x:Name="TwoPassButton" Grid.Column="1" VerticalAlignment="Center" Click="OnTwoPassClick" AutomationProperties.Name="2-pass">
+                    <ToolTipService.ToolTip>
+                        <ToolTip>
+                            <TextBlock x:Name="TwoPassTip" TextWrapping="Wrap" MaxWidth="320" />
+                        </ToolTip>
+                    </ToolTipService.ToolTip>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Grid>
+                            <FontIcon x:Name="TwoPassIcon" Glyph="&#xE8B9;" FontSize="14" />
+                            <ProgressRing x:Name="TwoPassRing" Style="{StaticResource ButtonRing}" />
+                        </Grid>
+                        <TextBlock x:Name="TwoPassText" Text="2-pass…" MaxWidth="200" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </ToggleButton>
+                <StackPanel x:Name="InfoPanel" Grid.Column="2" VerticalAlignment="Center">
                     <TextBlock x:Name="FormatText" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True" />
                     <TextBlock Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                Text="For the best results use a raw lossless scan without any color correction or adjustments"
                                ToolTipService.ToolTip="For the best results use a raw lossless scan without any color correction or adjustments" />
                 </StackPanel>
-                <TextBlock x:Name="StatusText" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"
+                <TextBlock x:Name="StatusText" Grid.Column="2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"
                            Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Visibility="Collapsed" />
-                <Button x:Name="SaveButton" Grid.Column="2" Width="144" AutomationProperties.Name="Export As" Click="OnSave" Style="{StaticResource AccentButtonStyle}"
+                <Button x:Name="SaveButton" Grid.Column="3" Width="144" AutomationProperties.Name="Export As" Click="OnSave" Style="{StaticResource AccentButtonStyle}"
                         ToolTipService.ToolTip="Export the result as a PNG with transparency">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE74E;" FontSize="14" />
