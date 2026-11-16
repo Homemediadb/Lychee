@@ -32,8 +32,11 @@ public sealed partial class MainWindow : Window
         Root.Loaded += (_, _) => SyncCaptionColors();
         Root.SizeChanged += (_, _) => FitTabs();
         Welcome.OpenRequested += PickFiles;
+        AddShortcuts();
         Closed += (_, _) => { foreach (var view in Views) view.Close(); };
     }
+
+    ScanView? Active => (Tabs.SelectedItem as TabViewItem)?.Tag as ScanView;
 
     IEnumerable<ScanView> Views => Tabs.TabItems.Cast<TabViewItem>().Select(t => (ScanView)t.Tag);
 
@@ -99,6 +102,7 @@ public sealed partial class MainWindow : Window
     void CloseTab(TabViewItem tab)
     {
         var view = (ScanView)tab.Tag;
+        if (view.SaveState == SaveState.Saving) return;
         view.Close();
         PagesHost.Children.Remove(view);
         Tabs.TabItems.Remove(tab);

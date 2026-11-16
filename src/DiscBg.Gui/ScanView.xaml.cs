@@ -147,6 +147,11 @@ public sealed partial class ScanView : UserControl
 
     void OnViewToggle(object sender, RoutedEventArgs e) => SetView(ReferenceEquals(sender, AfterButton));
 
+    public void ToggleView()
+    {
+        if (BeforeButton.IsEnabled) SetView(!showAfter);
+    }
+
     void SetView(bool after)
     {
         bool changed = after != showAfter;
@@ -202,6 +207,8 @@ public sealed partial class ScanView : UserControl
 
     void OnStageAreaSizeChanged(object sender, SizeChangedEventArgs e) =>
         Preview.Width = Preview.Height = Math.Min(e.NewSize.Width, e.NewSize.Height);
+
+    public void Save() => OnSave(this, new RoutedEventArgs());
 
     async void OnSave(object sender, RoutedEventArgs e)
     {
