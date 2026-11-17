@@ -7,6 +7,7 @@
         <!-- Canvases, so what they hold runs past the stage's edges unclipped -->
         <Canvas x:Name="Behind">
             <Image x:Name="Checker" Stretch="Fill" />
+            <Image x:Name="PlasmaImage" Stretch="Fill" Visibility="Collapsed" />
         </Canvas>
         <Canvas>
             <Image x:Name="Picture" Stretch="Fill" RenderTransformOrigin="0,0">

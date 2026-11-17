@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace DiscBg.Gui;
 
-public enum Backdrop { Transparent, Checkerboard, Black, White, Red, Yellow, Green, Cyan, Blue, Magenta }
+public enum Backdrop { Transparent, Checkerboard, Black, White, Red, Yellow, Green, Cyan, Blue, Magenta, Plasma }
 
 public sealed class Settings
 {

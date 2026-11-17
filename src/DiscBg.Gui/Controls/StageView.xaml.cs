@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -33,7 +34,11 @@ public sealed partial class StageView : UserControl
         InitializeComponent();
         Settings.Changed += Apply;
         ActualThemeChanged += (_, _) => Apply();
-        Unloaded += (_, _) => Settings.Changed -= Apply;
+        Unloaded += (_, _) =>
+        {
+            Settings.Changed -= Apply;
+            Animate(false);
+        };
     }
 
     public bool Interactive { get; set; } = true;
@@ -171,10 +176,12 @@ public sealed partial class StageView : UserControl
             Gui.Backdrop.Checkerboard => Color.FromArgb(140, 0, 0, 0),
             Gui.Backdrop.White or Gui.Backdrop.Yellow or Gui.Backdrop.Green or Gui.Backdrop.Cyan => Color.FromArgb(90, 0, 0, 0),
             Gui.Backdrop.Black => Color.FromArgb(110, 255, 255, 255),
-            Gui.Backdrop.Red or Gui.Backdrop.Blue or Gui.Backdrop.Magenta => Color.FromArgb(150, 255, 255, 255),
+            Gui.Backdrop.Red or Gui.Backdrop.Blue or Gui.Backdrop.Magenta or Gui.Backdrop.Plasma => Color.FromArgb(150, 255, 255, 255),
             _ => ActualTheme == ElementTheme.Light ? Color.FromArgb(90, 0, 0, 0) : Color.FromArgb(90, 255, 255, 255),
         });
         Checker.Visibility = backdrop == Gui.Backdrop.Checkerboard ? Visibility.Visible : Visibility.Collapsed;
+        PlasmaImage.Visibility = backdrop == Gui.Backdrop.Plasma ? Visibility.Visible : Visibility.Collapsed;
+        Animate(backdrop == Gui.Backdrop.Plasma);
         if (backdrop == Gui.Backdrop.Checkerboard) DrawChecker();
     }
 
@@ -200,6 +207,66 @@ public sealed partial class StageView : UserControl
         checkerBitmap = Bitmap(checkerBitmap, (buffer, w, h));
         if (!ReferenceEquals(Checker.Source, checkerBitmap)) Checker.Source = checkerBitmap;
         (Checker.Width, Checker.Height) = (w / scale, h / scale);
+    }
+
+    // DIPs per plasma pixel
+    const double PlasmaTexel = 8;
+    const double PlasmaSpeed = 0.3;
+    static readonly Stopwatch Clock = Stopwatch.StartNew();
+    WriteableBitmap? plasmaBitmap;
+    byte[] plasma = [];
+    bool animating;
+    long lastFrame;
+
+    void Animate(bool on)
+    {
+        if (on == animating) return;
+        animating = on;
+        if (on) CompositionTarget.Rendering += OnRendering;
+        else CompositionTarget.Rendering -= OnRendering;
+    }
+
+    void OnRendering(object? sender, object e)
+    {
+        long now = Clock.ElapsedMilliseconds;
+        if (now - lastFrame < 33 || !OnScreen()) return;
+        lastFrame = now;
+        DrawPlasma(Clock.Elapsed.TotalSeconds * PlasmaSpeed);
+    }
+
+    bool OnScreen()
+    {
+        if (XamlRoot is null) return false;
+        for (DependencyObject? d = this; d is not null; d = VisualTreeHelper.GetParent(d))
+            if (d is UIElement { Visibility: Visibility.Collapsed }) return false;
+        return true;
+    }
+
+    void DrawPlasma(double t)
+    {
+        int w = Math.Max(2, (int)Math.Ceiling(Root.ActualWidth / PlasmaTexel)), h = Math.Max(2, (int)Math.Ceiling(Root.ActualHeight / PlasmaTexel));
+        if (plasma.Length != w * h * 4) plasma = new byte[w * h * 4];
+        double size = Math.Max(w, h) / 7.0;
+        double drift = t * 0.4;
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                double u = x / size, v = y / size;
+                double cx = u + 2 * Math.Sin(t / 5), cy = v + 2 * Math.Cos(t / 3);
+                double sum = Math.Sin(u + t)
+                    + Math.Sin((v + t) / 2)
+                    + Math.Sin((u * Math.Sin(t / 2) + v * Math.Cos(t / 3) + t) / 2)
+                    + Math.Sin(Math.Sqrt(cx * cx + cy * cy + 1) + t);
+                double a = Math.PI * sum / 4 + drift;
+                int i = 4 * (y * w + x);
+                plasma[i + 2] = (byte)(127.5 + 127.5 * Math.Sin(a));
+                plasma[i + 1] = (byte)(127.5 + 127.5 * Math.Sin(a + 2 * Math.PI / 3));
+                plasma[i] = (byte)(127.5 + 127.5 * Math.Sin(a + 4 * Math.PI / 3));
+                plasma[i + 3] = 255;
+            }
+        plasmaBitmap = Bitmap(plasmaBitmap, (plasma, w, h));
+        if (!ReferenceEquals(PlasmaImage.Source, plasmaBitmap)) PlasmaImage.Source = plasmaBitmap;
+        (PlasmaImage.Width, PlasmaImage.Height) = (w * PlasmaTexel, h * PlasmaTexel);
     }
 
     void OnSizeChanged(object sender, SizeChangedEventArgs e)
