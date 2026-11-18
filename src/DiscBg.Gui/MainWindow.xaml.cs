@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 using Windows.Storage.Pickers;
@@ -14,6 +15,10 @@ namespace DiscBg.Gui;
 public sealed partial class MainWindow : Window
 {
     public static readonly string[] ScanTypes = [".png", ".jpg", ".jpeg", ".webp", ".bmp"];
+    readonly SettingsPage settingsPage;
+    string? page;
+    TabViewItem? lastTab;
+    long pageSelectedAt;
 
     public MainWindow()
     {
@@ -28,11 +33,26 @@ public sealed partial class MainWindow : Window
         if (AppWindow.Presenter is OverlappedPresenter presenter)
             (presenter.PreferredMinimumWidth, presenter.PreferredMinimumHeight) = ((int)(640 * scale), (int)(480 * scale));
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "disc.ico"));
-        Root.ActualThemeChanged += (_, _) => SyncCaptionColors();
-        Root.Loaded += (_, _) => SyncCaptionColors();
+        Root.ActualThemeChanged += (_, _) => { SyncCaptionColors(); HighlightTitleButtons(); };
+        Root.Loaded += (_, _) =>
+        {
+            SyncCaptionColors();
+            FitCaptionGap();
+            Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
+        };
         Root.SizeChanged += (_, _) => FitTabs();
         Welcome.OpenRequested += PickFiles;
         AddShortcuts();
+        settingsPage = new SettingsPage();
+        foreach (var p in new UIElement[] { settingsPage })
+        {
+            p.Visibility = Visibility.Collapsed;
+            PagesHost.Children.Add(p);
+        }
+        ApplyTheme();
+        Settings.Changed += ApplyTheme;
+        // The items mark taps handled
+        TitleButtons.AddHandler(UIElement.TappedEvent, new TappedEventHandler(OnTitleButtonTapped), handledEventsToo: true);
         Closed += (_, _) => { foreach (var view in Views) view.Close(); };
     }
 
@@ -79,6 +99,7 @@ public sealed partial class MainWindow : Window
             Tabs.TabItems.Add(tab);
             Tabs.SelectedItem = tab;
             _ = view.OpenAsync();
+            ClosePageState();
         }
         // SelectionChanged doesn't fire while the strip is collapsed
         ShowSelected();
@@ -109,22 +130,77 @@ public sealed partial class MainWindow : Window
         ShowSelected();
     }
 
-    void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e) => ShowSelected();
+    void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (Tabs.SelectedItem is not null) ClosePageState();
+        ShowSelected();
+    }
 
     void ShowSelected()
     {
         var selected = (Tabs.SelectedItem as TabViewItem)?.Tag;
-        foreach (var view in Views) view.Visibility = ReferenceEquals(view, selected) ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var view in Views) view.Visibility = page is null && ReferenceEquals(view, selected) ? Visibility.Visible : Visibility.Collapsed;
         bool empty = Tabs.TabItems.Count == 0;
-        Welcome.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        Welcome.Visibility = empty && page is null ? Visibility.Visible : Visibility.Collapsed;
+        settingsPage.Visibility = page == "settings" ? Visibility.Visible : Visibility.Collapsed;
         Tabs.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
     }
+
+    void OnTitleButtonSelected(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        if (sender.SelectedItem is not { Tag: string tag }) return;
+        pageSelectedAt = Environment.TickCount64;
+        ShowPage(tag);
+    }
+
+    void OnTitleButtonTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (page is not null && Environment.TickCount64 - pageSelectedAt > 300 && (string?)TitleButtons.SelectedItem?.Tag == page) ShowPage(null);
+    }
+
+    void OnBrand(object sender, RoutedEventArgs e) => ShowPage(null);
+
+    void ShowPage(string? tag)
+    {
+        if (tag is not null)
+        {
+            if (Tabs.SelectedItem is TabViewItem tab) lastTab = tab;
+            page = tag;
+            Tabs.SelectedItem = null;
+        }
+        else
+        {
+            ClosePageState();
+            Tabs.SelectedItem = lastTab is not null && Tabs.TabItems.Contains(lastTab) ? lastTab : Tabs.TabItems.FirstOrDefault();
+        }
+        HighlightTitleButtons();
+        ShowSelected();
+    }
+
+    void ClosePageState()
+    {
+        page = null;
+        TitleButtons.SelectedItem = null;
+        HighlightTitleButtons();
+    }
+
+    // Selected+hover falls back to the item's own Background
+    void HighlightTitleButtons() => HighlightSelected(TitleButtons, SelectedFill.Background);
+
+    internal static void HighlightSelected(SelectorBar bar, Brush fill)
+    {
+        foreach (var item in bar.Items)
+            if (item == bar.SelectedItem) item.Background = fill;
+            else item.ClearValue(Control.BackgroundProperty);
+    }
+
+    void ApplyTheme() => Root.RequestedTheme = Settings.Current.Theme;
 
     void FitTabs()
     {
         if (Root.XamlRoot is null) return;
         double captions = AppWindow.TitleBar.RightInset / Root.XamlRoot.RasterizationScale;
-        Tabs.MaxWidth = Math.Max(0, Root.ActualWidth - Brand.ActualWidth - captions);
+        Tabs.MaxWidth = Math.Max(0, Root.ActualWidth - Brand.ActualWidth - TitleButtons.ActualWidth - captions);
     }
 
     static void RoundAllCorners(TabViewItem tab)
@@ -141,6 +217,13 @@ public sealed partial class MainWindow : Window
             }
             return null;
         }
+    }
+
+    // TitleBar (WinAppSDK 2.5) reserves RightInset as DIPs, not px; drop when fixed
+    void FitCaptionGap()
+    {
+        double scale = Root.XamlRoot.RasterizationScale;
+        TitleButtons.Margin = new Thickness(0, 0, -AppWindow.TitleBar.RightInset * (1 - 1 / scale), 0);
     }
 
     // Caption buttons are system-drawn: the same color active or not

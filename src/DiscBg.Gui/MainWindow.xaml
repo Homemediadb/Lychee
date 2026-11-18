@@ -12,11 +12,23 @@
                     <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Left</HorizontalAlignment>
                     <x:Double x:Key="TitleBarDeactivatedOpacity">1</x:Double>
                 </TitleBar.Resources>
+                <TitleBar.RightHeader>
+                    <SelectorBar x:Name="TitleButtons" SelectionChanged="OnTitleButtonSelected">
+                        <SelectorBarItem Tag="settings" ToolTipService.ToolTip="Settings" AutomationProperties.Name="Settings">
+                            <SelectorBarItem.Icon>
+                                <FontIcon Glyph="&#xE713;" />
+                            </SelectorBarItem.Icon>
+                        </SelectorBarItem>
+                    </SelectorBar>
+                </TitleBar.RightHeader>
                 <StackPanel Orientation="Horizontal">
-                    <StackPanel x:Name="Brand" Orientation="Horizontal" Spacing="8" Padding="2,4,10,4" Margin="0,0,8,0" VerticalAlignment="Center">
-                        <Image Source="ms-appx:///Assets/disc.png" Height="24" />
-                        <TextBlock Text="Disc BG Remover" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" />
-                    </StackPanel>
+                    <Button x:Name="Brand" Click="OnBrand" Padding="6,4,10,4" Margin="-4,0,8,0" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0" AutomationProperties.Name="Home" ToolTipService.ToolTip="Home">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Image Source="ms-appx:///Assets/disc.png" Height="24" />
+                            <TextBlock Text="Disc BG Remover" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </Button>
                     <TabView x:Name="Tabs" VerticalAlignment="Center" Background="Transparent" Visibility="Collapsed"
                              CanReorderTabs="True" CanDragTabs="False"
                              AddTabButtonClick="OnAddTab" TabCloseRequested="OnTabCloseRequested"
@@ -40,6 +52,9 @@
               DragEnter="OnDragEnter" DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop">
             <local:WelcomeView x:Name="Welcome" />
         </Grid>
+
+        <!-- Code copies this fill: it can't look up a ThemeResource -->
+        <Border x:Name="SelectedFill" Visibility="Collapsed" Background="{ThemeResource SubtleFillColorSecondaryBrush}" />
 
         <controls:DropOverlay x:Name="DropZone" Grid.Row="1" />
     </Grid>

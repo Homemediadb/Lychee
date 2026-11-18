@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.UI.Xaml;
 
 namespace DiscBg.Gui;
 
@@ -7,6 +8,7 @@ public enum Backdrop { Transparent, Checkerboard, Black, White, Red, Yellow, Gre
 
 public sealed class Settings
 {
+    public ElementTheme Theme { get; set; } = ElementTheme.Default;
     public Backdrop Backdrop { get; set; } = Backdrop.Transparent;
     public string SaveSuffix { get; set; } = "_nobg";
 
