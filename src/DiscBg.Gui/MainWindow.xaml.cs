@@ -14,6 +14,7 @@ namespace DiscBg.Gui;
 
 public sealed partial class MainWindow : Window
 {
+    const string KoFi = "https://ko-fi.com/rlaphoenix";
     public static readonly string[] ScanTypes = [".png", ".jpg", ".jpeg", ".webp", ".bmp"];
     readonly AboutPage aboutPage = new();
     readonly SettingsPage settingsPage;
@@ -151,12 +152,26 @@ public sealed partial class MainWindow : Window
     void OnTitleButtonSelected(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
         if (sender.SelectedItem is not { Tag: string tag }) return;
+        if (tag == "kofi")
+        {
+            // Changing the selection inside its handler re-raises it
+            DispatcherQueue.TryEnqueue(() => sender.SelectedItem = sender.Items.FirstOrDefault(i => (string)i.Tag == page));
+            return;
+        }
         pageSelectedAt = Environment.TickCount64;
         ShowPage(tag);
     }
 
     void OnTitleButtonTapped(object sender, TappedRoutedEventArgs e)
     {
+        for (var element = e.OriginalSource as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
+        {
+            if (element is SelectorBarItem { Tag: "kofi" })
+            {
+                _ = Windows.System.Launcher.LaunchUriAsync(new Uri(KoFi));
+                return;
+            }
+        }
         if (page is not null && Environment.TickCount64 - pageSelectedAt > 300 && (string?)TitleButtons.SelectedItem?.Tag == page) ShowPage(null);
     }
 
