@@ -37,6 +37,12 @@
     <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>WindowsAppSDKVersion</_Parameter1>
+      <_Parameter2>$(WindowsAppSDKVersion)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\DiscBg.Core\DiscBg.Core.csproj" />
   </ItemGroup>
   <Target Name="StripPublish" AfterTargets="Publish">

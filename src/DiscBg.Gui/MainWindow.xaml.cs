@@ -15,6 +15,7 @@ namespace DiscBg.Gui;
 public sealed partial class MainWindow : Window
 {
     public static readonly string[] ScanTypes = [".png", ".jpg", ".jpeg", ".webp", ".bmp"];
+    readonly AboutPage aboutPage = new();
     readonly SettingsPage settingsPage;
     string? page;
     TabViewItem? lastTab;
@@ -44,7 +45,7 @@ public sealed partial class MainWindow : Window
         Welcome.OpenRequested += PickFiles;
         AddShortcuts();
         settingsPage = new SettingsPage();
-        foreach (var p in new UIElement[] { settingsPage })
+        foreach (var p in new UIElement[] { aboutPage, settingsPage })
         {
             p.Visibility = Visibility.Collapsed;
             PagesHost.Children.Add(p);
@@ -142,6 +143,7 @@ public sealed partial class MainWindow : Window
         foreach (var view in Views) view.Visibility = page is null && ReferenceEquals(view, selected) ? Visibility.Visible : Visibility.Collapsed;
         bool empty = Tabs.TabItems.Count == 0;
         Welcome.Visibility = empty && page is null ? Visibility.Visible : Visibility.Collapsed;
+        aboutPage.Visibility = page == "about" ? Visibility.Visible : Visibility.Collapsed;
         settingsPage.Visibility = page == "settings" ? Visibility.Visible : Visibility.Collapsed;
         Tabs.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
     }
@@ -167,6 +169,7 @@ public sealed partial class MainWindow : Window
             if (Tabs.SelectedItem is TabViewItem tab) lastTab = tab;
             page = tag;
             Tabs.SelectedItem = null;
+            if (tag == "about") aboutPage.Load();
         }
         else
         {

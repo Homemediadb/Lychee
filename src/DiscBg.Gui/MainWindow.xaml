@@ -14,6 +14,11 @@
                 </TitleBar.Resources>
                 <TitleBar.RightHeader>
                     <SelectorBar x:Name="TitleButtons" SelectionChanged="OnTitleButtonSelected">
+                        <SelectorBarItem Tag="about" ToolTipService.ToolTip="About" AutomationProperties.Name="About">
+                            <SelectorBarItem.Icon>
+                                <FontIcon Glyph="&#xE946;" />
+                            </SelectorBarItem.Icon>
+                        </SelectorBarItem>
                         <SelectorBarItem Tag="settings" ToolTipService.ToolTip="Settings" AutomationProperties.Name="Settings">
                             <SelectorBarItem.Icon>
                                 <FontIcon Glyph="&#xE713;" />
