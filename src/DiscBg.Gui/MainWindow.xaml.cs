@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -34,6 +35,8 @@ public sealed partial class MainWindow : Window
         AppWindow.Resize(new SizeInt32((int)(1180 * scale), (int)(820 * scale)));
         if (AppWindow.Presenter is OverlappedPresenter presenter)
             (presenter.PreferredMinimumWidth, presenter.PreferredMinimumHeight) = ((int)(640 * scale), (int)(480 * scale));
+        squareLock = new SquareLock(WindowNative.GetWindowHandle(this), StageChrome, () => DispatcherQueue.TryEnqueue(SquareActive));
+        AppWindow.Changed += (_, e) => { if (e.DidPresenterChange) DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SquareActive); };
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "disc.ico"));
         Root.ActualThemeChanged += (_, _) => { SyncCaptionColors(); HighlightTitleButtons(); };
         Root.Loaded += (_, _) =>
@@ -92,6 +95,16 @@ public sealed partial class MainWindow : Window
                 outcome.Visibility = !view.IsBusy && state is SaveState.Saved or SaveState.Failed ? Visibility.Visible : Visibility.Collapsed;
                 tab.IsClosable = state != SaveState.Saving;
             };
+            if (!squared)
+            {
+                squared = true;
+                void Once(object s, SizeChangedEventArgs e)
+                {
+                    view.StageSpace.SizeChanged -= Once;
+                    SquareStage(e.NewSize);
+                }
+                view.StageSpace.SizeChanged += Once;
+            }
             tab.Loaded += (_, _) =>
             {
                 RoundAllCorners(tab);
@@ -105,6 +118,25 @@ public sealed partial class MainWindow : Window
         }
         // SelectionChanged doesn't fire while the strip is collapsed
         ShowSelected();
+    }
+
+    bool squared;
+    readonly SquareLock squareLock;
+
+    Windows.Foundation.Size? StageChrome() =>
+        Active is { StageSpace.ActualWidth: > 0 } view ? new(Root.ActualWidth - view.StageSpace.ActualWidth, Root.ActualHeight - view.StageSpace.ActualHeight) : null;
+
+    void SquareActive()
+    {
+        if (Active is { StageSpace.ActualWidth: > 0 } view) SquareStage(new(view.StageSpace.ActualWidth, view.StageSpace.ActualHeight));
+    }
+
+    void SquareStage(Windows.Foundation.Size space)
+    {
+        if (AppWindow.Presenter is not OverlappedPresenter { State: OverlappedPresenterState.Restored }) return;
+        double scale = Root.XamlRoot.RasterizationScale;
+        int width = AppWindow.Size.Width + (int)Math.Round((space.Height - space.Width) * scale);
+        AppWindow.Resize(new SizeInt32(width, AppWindow.Size.Height));
     }
 
     public async Task<IReadOnlyList<string>> PickScansAsync(bool multiple)
