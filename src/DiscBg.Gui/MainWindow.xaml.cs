@@ -1,10 +1,14 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.UI;
+using Microsoft.UI.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
@@ -58,6 +62,7 @@ public sealed partial class MainWindow : Window
         Settings.Changed += ApplyTheme;
         // The items mark taps handled
         TitleButtons.AddHandler(UIElement.TappedEvent, new TappedEventHandler(OnTitleButtonTapped), handledEventsToo: true);
+        ClickCursor.Attach(Root);
         Closed += (_, _) => { foreach (var view in Views) view.Close(); };
     }
 
