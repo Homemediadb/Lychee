@@ -53,6 +53,23 @@ for (int i = 0; i < cut.Width * cut.Height; i++) sum2 += cut.Pixels[4 * i + 3];
 Check(cut.Width < N && cut.Height < N, "transparent margins must be cropped");
 Check(Math.Abs((double)sx / n - (cut.Width - 1) / 2.0) < 1 && Math.Abs((double)sy / n - (cut.Height - 1) / 2.0) < 1, "disc stays centered");
 Check(sum1 == sum2, "no visible pixel is lost");
+byte[] Other(byte r, byte g, byte b)
+{
+    var o = (byte[])src.Clone();
+    for (int i = 0; i < N * N; i++)
+        if (R(i) is > 80 and <= 240 && (i % N / 40 + i / N / 40) % 2 == 0) (o[3 * i], o[3 * i + 1], o[3 * i + 2]) = (r, g, b);
+    return o;
+}
+var noise = new Random(1);
+Image Second(byte[] black) => new(N, N, 3, [.. black.Select(v => (byte)Math.Clamp(v * 0.95 + noise.Next(-3, 4), 0, 255))]);
+var (discB, discC) = (Other(200, 40, 60), Other(40, 60, 200));
+Pairing.Scan S(string name, Image image) => new(name, N, N, image);
+var match = Pairing.Match([S("a", scan), S("b", new Image(N, N, 3, discB)), S("c", new Image(N, N, 3, discC)),
+    S("b black", Second(OverBlack(discB))), S("a black", Second(blk))]);
+Check(match.Pairs.Select(p => $"{p.White.Path}+{p.Black.Path}").Order().SequenceEqual(["a+a black", "b+b black"]), "each disc paired with its own scan over black");
+Check(match.Unmatched.Single().Path == "c", "the disc over white alone is left over");
+Check(Pairing.Match([S("a", scan), S("a again", scan), S("a black", Second(blk))]).Pairs.Count == 0, "two scans of one disc over white: too close to call, so no pair");
+
 foreach (double? dpi in new double?[] { 1200, null })
 {
     var file = Path.Combine(Path.GetTempPath(), $"discbg-check-{dpi}.png");

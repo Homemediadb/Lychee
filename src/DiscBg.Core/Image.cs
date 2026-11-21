@@ -36,6 +36,24 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
         return new Image(w, h, 3, rgb, Resolution.Read(file));
     }
 
+    public static async Task<(Image Preview, int Width, int Height)> LoadPreviewAsync(string path, int maxSide = 256)
+    {
+        using var file = File.OpenRead(path);
+        var decoder = await BitmapDecoder.CreateAsync(file.AsRandomAccessStream());
+        var codec = decoder.DecoderInformation.CodecId;
+        if (codec != BitmapDecoder.PngDecoderId && codec != BitmapDecoder.JpegDecoderId && codec != BitmapDecoder.WebpDecoderId && codec != BitmapDecoder.BmpDecoderId)
+            throw new InvalidDataException("not a PNG, JPEG, WebP or BMP image");
+        int w = (int)decoder.PixelWidth, h = (int)decoder.PixelHeight;
+        double f = Math.Min(1, (double)maxSide / Math.Max(w, h));
+        var transform = new BitmapTransform { ScaledWidth = (uint)Math.Max(1, w * f), ScaledHeight = (uint)Math.Max(1, h * f), InterpolationMode = BitmapInterpolationMode.Fant };
+        var data = await decoder.GetPixelDataAsync(BitmapPixelFormat.Rgba8, BitmapAlphaMode.Straight, transform,
+            ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+        var rgba = data.DetachPixelData();
+        var rgb = new byte[rgba.Length / 4 * 3];
+        for (int i = 0, j = 0; i < rgba.Length; i += 4, j += 3) (rgb[j], rgb[j + 1], rgb[j + 2]) = (rgba[i], rgba[i + 1], rgba[i + 2]);
+        return (new Image((int)transform.ScaledWidth, (int)transform.ScaledHeight, 3, rgb), w, h);
+    }
+
     public async Task SavePngAsync(string path)
     {
         if (Channels != 4) throw new InvalidOperationException("only RGBA results are saved");
