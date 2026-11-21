@@ -51,6 +51,7 @@ public sealed partial class MainWindow : Window
         };
         Root.SizeChanged += (_, _) => FitTabs();
         Welcome.OpenRequested += PickFiles;
+        Welcome.BatchRequested += OpenBatch;
         AddShortcuts();
         settingsPage = new SettingsPage();
         foreach (var p in new UIElement[] { aboutPage, settingsPage })
@@ -63,7 +64,11 @@ public sealed partial class MainWindow : Window
         // The items mark taps handled
         TitleButtons.AddHandler(UIElement.TappedEvent, new TappedEventHandler(OnTitleButtonTapped), handledEventsToo: true);
         ClickCursor.Attach(Root);
-        Closed += (_, _) => { foreach (var view in Views) view.Close(); };
+        Closed += (_, _) =>
+        {
+            foreach (var view in Views) view.Close();
+            batch?.Close();
+        };
     }
 
     ScanView? Active => (Tabs.SelectedItem as TabViewItem)?.Tag as ScanView;
@@ -142,6 +147,18 @@ public sealed partial class MainWindow : Window
         double scale = Root.XamlRoot.RasterizationScale;
         int width = AppWindow.Size.Width + (int)Math.Round((space.Height - space.Width) * scale);
         AppWindow.Resize(new SizeInt32(width, AppWindow.Size.Height));
+    }
+
+    BatchWindow? batch;
+
+    public void OpenBatch()
+    {
+        if (batch is null)
+        {
+            batch = new BatchWindow();
+            batch.Closed += (_, _) => batch = null;
+        }
+        batch.Activate();
     }
 
     public async Task<IReadOnlyList<string>> PickScansAsync(bool multiple)

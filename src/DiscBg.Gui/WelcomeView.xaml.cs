@@ -9,5 +9,9 @@ public sealed partial class WelcomeView : UserControl
 
     public event Action? OpenRequested;
 
+    public event Action? BatchRequested;
+
+    void OnBatch(object sender, RoutedEventArgs e) => BatchRequested?.Invoke();
+
     void OnOpen(object sender, RoutedEventArgs e) => OpenRequested?.Invoke();
 }
