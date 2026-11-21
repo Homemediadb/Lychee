@@ -16,7 +16,7 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
     public int OriginX { get; init; }
     public int OriginY { get; init; }
 
-    public static async Task<Image> LoadAsync(string path)
+    public static async Task<Image> LoadAsync(string path, bool alpha = false)
     {
         using var file = File.OpenRead(path);
         var decoder = await BitmapDecoder.CreateAsync(file.AsRandomAccessStream());
@@ -27,6 +27,7 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
             ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
         var rgba = data.DetachPixelData();
         int w = (int)decoder.PixelWidth, h = (int)decoder.PixelHeight;
+        if (alpha) return new Image(w, h, 4, rgba, Resolution.Read(file));
         var rgb = new byte[w * h * 3];
         Parallel.For(0, h, y =>
         {

@@ -189,6 +189,7 @@ sealed class BatchRow
     readonly Controls.StageView preview = new() { Interactive = false, MaxSide = 160, Backdrop = Backdrop.Checkerboard, Square = 6, Width = 72, Height = 72, IsHitTestVisible = false };
     readonly TextBlock size = Caption("Waiting…"), file = Caption("");
     readonly Button view = new() { Content = "View Image", IsEnabled = false, VerticalAlignment = VerticalAlignment.Center };
+    readonly Button stage = new() { Content = "Preview", IsEnabled = false, VerticalAlignment = VerticalAlignment.Center };
     string? output;
 
     public Border Element { get; }
@@ -226,11 +227,15 @@ sealed class BatchRow
             ColumnDefinitions = { new() { Width = GridLength.Auto }, new() { Width = GridLength.Auto }, new(), new() { Width = GridLength.Auto } },
             Children = { status, preview, text },
         };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { view } };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { stage, view } };
         row.Children.Add(buttons);
         Grid.SetColumn(preview, 1);
         Grid.SetColumn(text, 2);
         Grid.SetColumn(buttons, 3);
+        stage.Click += (_, _) =>
+        {
+            if (output is not null) new PreviewWindow(output).Activate();
+        };
         view.Click += async (_, _) =>
         {
             if (output is not null) await Windows.System.Launcher.LaunchFileAsync(await StorageFile.GetFileFromPathAsync(output));
@@ -273,7 +278,7 @@ sealed class BatchRow
             Describe(result, new FileInfo(dst).Length);
             output = dst;
             ToolTipService.SetToolTip(view, dst);
-            view.IsEnabled = true;
+            view.IsEnabled = stage.IsEnabled = true;
             Finish(failed: false);
         }
         catch (OperationCanceledException)
