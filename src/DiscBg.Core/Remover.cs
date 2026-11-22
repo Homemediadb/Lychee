@@ -115,13 +115,16 @@ public static class Remover
         Parallel.For(0, w * h, i => bgm[i] = fromCorners[i] && dark[i] <= t);
         fromCorners = null;
 
+        // 2. Outer ellipse: the discs are the round, solid shapes that aren't background
+        var disc = DiscShape(bgm, w, h);
         var (ex, ey) = (new List<double>(), new List<double>());
         for (int y = 1; y < h - 1; y++)
             for (int x = 1; x < w - 1; x++)
             {
                 int i = y * w + x;
-                if (bgm[i] && !(bgm[i - 1] && bgm[i + 1] && bgm[i - w] && bgm[i + w])) { ex.Add(x); ey.Add(y); }
+                if (bgm[i] && (disc[i - 1] || disc[i + 1] || disc[i - w] || disc[i + w])) { ex.Add(x); ey.Add(y); }
             }
+        disc = null;
         if (ex.Count < 50) throw new InvalidDataException("no disc edge found");
         var outer = Ellipse.Fit([.. ex], [.. ey]);
         double Dark(int x, int y) => dark[y * w + x];
@@ -280,6 +283,42 @@ public static class Remover
     }
 
     static double[] Terms(double x, double y) => [1, x, y, x * x, x * y, y * y];
+
+    static bool[] DiscShape(bool[] background, int w, int h)
+    {
+        var seen = new bool[w * h];
+        var queue = new int[w * h];
+        int best = -1, largest = -1;
+        long bestArea = 0, largestArea = 0;
+        for (int start = 0; start < w * h; start++)
+        {
+            if (background[start] || seen[start]) continue;
+            int head = 0, tail = 0, x0 = w, x1 = -1, y0 = h, y1 = -1;
+            seen[start] = true;
+            queue[tail++] = start;
+            while (head < tail)
+            {
+                int i = queue[head++], x = i % w, y = i / w;
+                (x0, x1, y0, y1) = (Math.Min(x0, x), Math.Max(x1, x), Math.Min(y0, y), Math.Max(y1, y));
+                if (x > 0) Visit(i - 1);
+                if (x < w - 1) Visit(i + 1);
+                if (y > 0) Visit(i - w);
+                if (y < h - 1) Visit(i + w);
+            }
+            long area = tail;
+            double bw = x1 - x0 + 1, bh = y1 - y0 + 1, aspect = bw / bh, fill = area / (bw * bh);
+            if (area > largestArea) (largest, largestArea) = (start, area);
+            if (aspect is > 0.75 and < 1.33 && fill is > 0.55 and < 0.95 && area > bestArea) (best, bestArea) = (start, area);
+
+            void Visit(int j)
+            {
+                if (background[j] || seen[j]) return;
+                seen[j] = true;
+                queue[tail++] = j;
+            }
+        }
+        return largest < 0 ? new bool[w * h] : Fill(w, h, [best >= 0 ? best : largest], i => !background[i]);
+    }
 
     static double Sq(double v) => v * v;
 

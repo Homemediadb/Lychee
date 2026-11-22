@@ -53,6 +53,24 @@ for (int i = 0; i < cut.Width * cut.Height; i++) sum2 += cut.Pixels[4 * i + 3];
 Check(cut.Width < N && cut.Height < N, "transparent margins must be cropped");
 Check(Math.Abs((double)sx / n - (cut.Width - 1) / 2.0) < 1 && Math.Abs((double)sy / n - (cut.Height - 1) / 2.0) < 1, "disc stays centered");
 Check(sum1 == sum2, "no visible pixel is lost");
+{
+    const int PW = 900, PH = 1200, OX = 120, OY = 380;
+    var page = new byte[PW * PH * 3];
+    Array.Fill(page, (byte)238);
+    for (int y = 0; y < N; y++)
+        for (int x = 0; x < N; x++)
+            for (int c = 0; c < 3; c++) page[3 * ((y + OY) * PW + x + OX) + c] = (byte)Math.Min(238, (int)src[3 * (y * N + x) + c]);
+    for (int y = 0; y < PH; y++)
+        for (int x = 0; x < PW; x++)
+        {
+            int edge = Math.Min(Math.Abs(x - 840), Math.Abs(y - 1140));
+            if (edge < 24) for (int c = 0; c < 3; c++) page[3 * (y * PW + x) + c] = (byte)(150 + 88 * edge / 24);
+            else if (x > 840 || y > 1140) for (int c = 0; c < 3; c++) page[3 * (y * PW + x) + c] = 234;
+        }
+    var (_, onPage) = Remover.Matte(new Image(PW, PH, 3, page));
+    Check(Math.Abs(onPage.Cx - (OX + 300)) < 3 && Math.Abs(onPage.Cy - (OY + 300)) < 3 && Math.Abs(onPage.R - 248) < 4, $"the disc on a page is found, not the page's edge ({onPage})");
+}
+
 byte[] Other(byte r, byte g, byte b)
 {
     var o = (byte[])src.Clone();
