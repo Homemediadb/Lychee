@@ -172,17 +172,33 @@ public static class Remover
 
         // 4. Alpha: the disc opaque, the rest matted against the background
         byte[]? blk = null;
-        var blackLevel = new double[3];
+        var (blackLevel, blackGain) = (new double[3], new double[3]);
         if (black is not null)
         {
             // Assumes the disc didn't move between the two scans
             if (black.Width != w || black.Height != h || black.Channels != 3) throw new InvalidDataException("black scan is not the same size as the white one");
             blk = black.Pixels;
+            // Only around the disc counts: black paper needn't cover the whole scan
             var hist = new long[3][];
             for (int ch = 0; ch < 3; ch++) hist[ch] = new long[256];
-            for (int i = 0; i < w * h; i++)
-                if (bgm[i]) for (int ch = 0; ch < 3; ch++) hist[ch][blk[3 * i + ch]]++;
-            for (int ch = 0; ch < 3; ch++) blackLevel[ch] = Median(hist[ch]);
+            var (wb, bb) = (new double[3], new double[3]);
+            int reach = (int)Math.Ceiling(outer.R * (1 + Math.Abs(outer.E)) * 1.2);
+            for (int y = Math.Max(0, (int)outer.Cy - reach); y < Math.Min(h, (int)outer.Cy + reach); y++)
+                for (int x = Math.Max(0, (int)outer.Cx - reach); x < Math.Min(w, (int)outer.Cx + reach); x++)
+                {
+                    double d = outer.Dist(x, y);
+                    int i = 3 * (y * w + x);
+                    if (d > 0.03 * outer.R && d < 0.15 * outer.R)
+                        for (int ch = 0; ch < 3; ch++) hist[ch][blk[i + ch]]++;
+                    else if (d < -0.05 * outer.R && Math.Sqrt(Sq(x - outer.Cx) + Sq(y - outer.Cy)) > 0.42 * outer.R)
+                        for (int ch = 0; ch < 3; ch++) (wb[ch], bb[ch]) = (wb[ch] + px[i + ch] * (double)blk[i + ch], bb[ch] + Sq(blk[i + ch]));
+                }
+            for (int ch = 0; ch < 3; ch++)
+            {
+                if (hist[ch].Sum() == 0) throw new InvalidDataException("no black backdrop round the disc in the black scan");
+                blackGain[ch] = bb[ch] > 0 ? Math.Clamp(wb[ch] / bb[ch], 0.8, 1.25) : 1;
+                blackLevel[ch] = Median(hist[ch]) * blackGain[ch];
+            }
         }
         var output = new byte[w * h * 4];
         Parallel.For(0, h, y =>
@@ -212,7 +228,7 @@ public static class Remover
                     double v = px[3 * i + ch];
                     ink[ch] = a > 0 ? Math.Clamp((v - (1 - a) * basis[ch]) / a, 0, 255) : 0;
                     fg[ch] = v;
-                    if (blk is not null) shows += (v - blk[3 * i + ch]) / Math.Max(light[ch] - blackLevel[ch], 1) / 3;
+                    if (blk is not null) shows += (v - blackGain[ch] * blk[3 * i + ch]) / Math.Max(light[ch] - blackLevel[ch], 1) / 3;
                 }
                 if (blk is not null)
                 {
