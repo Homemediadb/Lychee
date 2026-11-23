@@ -104,6 +104,7 @@ public static class Remover
         var signed = new List<float>();
         for (int i = 0; i < w * h; i++) if (fromCorners[i]) signed.Add(dark[i]);
         var vals = signed.ToArray();
+        if (vals.Length == 0) throw new InvalidDataException("corners are not a light background");
         signed = null;
         double med = SortedMedian(vals);
         for (int i = 0; i < vals.Length; i++) vals[i] = (float)Math.Abs(vals[i] - med);
