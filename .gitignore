@@ -12,4 +12,4 @@ dist/
 *.jpeg
 *.webp
 *.bmp
-!src/DiscBg.Gui/Assets/*.png
+!src/Lychee.Gui/Assets/*.png
