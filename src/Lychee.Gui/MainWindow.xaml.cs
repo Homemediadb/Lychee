@@ -42,11 +42,12 @@ public sealed partial class MainWindow : Window
         squareLock = new SquareLock(WindowNative.GetWindowHandle(this), StageChrome, () => DispatcherQueue.TryEnqueue(SquareActive));
         AppWindow.Changed += (_, e) => { if (e.DidPresenterChange) DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SquareActive); };
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
-        Root.ActualThemeChanged += (_, _) => { SyncCaptionColors(); HighlightTitleButtons(); };
+        Root.ActualThemeChanged += (_, _) => { SyncCaptionColors(); HighlightTitleButtons(); Settings.Current.FitBackdropTo(Root.ActualTheme); };
         Root.Loaded += async (_, _) =>
         {
             SyncCaptionColors();
             FitCaptionGap();
+            Settings.Current.FitBackdropTo(Root.ActualTheme);
             Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
             await ShowTipAsync(Root.XamlRoot, "For the best results", ScanAdvice, null,
                 () => Settings.Current.HideScanTips, hide => Settings.Current.HideScanTips = hide);

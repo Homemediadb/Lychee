@@ -10,12 +10,28 @@ public sealed class Settings
 {
     public ElementTheme Theme { get; set; } = ElementTheme.Default;
     public Backdrop Backdrop { get; set; } = Backdrop.Transparent;
+    public ElementTheme BackdropTheme { get; set; } = ElementTheme.Dark;
     public bool HideScanTips { get; set; }
     public string SaveSuffix { get; set; } = "_nobg";
     public string BatchFolder { get; set; } = "";
     public bool BatchTwoPass { get; set; }
 
     public static Settings Current { get; } = Load();
+
+    public void FitBackdropTo(ElementTheme theme)
+    {
+        if (theme == BackdropTheme) return;
+        BackdropTheme = theme;
+        Backdrop = (theme, Backdrop) switch
+        {
+            (ElementTheme.Light, Backdrop.Transparent) => Backdrop.Checkerboard,
+            (ElementTheme.Dark, Backdrop.Checkerboard) => Backdrop.Transparent,
+            (ElementTheme.Light, Backdrop.White) => Backdrop.Black,
+            (ElementTheme.Dark, Backdrop.Black) => Backdrop.White,
+            var (_, kept) => kept,
+        };
+        Save();
+    }
 
     public static event Action? Changed;
 
