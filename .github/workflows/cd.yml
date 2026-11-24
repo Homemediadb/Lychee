@@ -1,0 +1,66 @@
+name: cd
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build and publish release
+    runs-on: windows-latest
+
+    steps:
+      - name: Validate version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $version = $tag -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+            throw "Tag must look like v1.0.0 or v1.0.0.0. Got '$tag'."
+          }
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~\.nuget\packages
+          key: nuget-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: nuget-
+
+      - name: Checks
+        run: dotnet run --project tests/Lychee.Checks -c Release --nologo
+
+      - name: Build app and installer
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Version $env:RELEASE_VERSION
+
+      - name: Package portable zip
+        shell: pwsh
+        run: Compress-Archive -Path .\dist\* -DestinationPath ".\Lychee-$env:RELEASE_VERSION-portable.zip"
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:RELEASE_TAG `
+            ".\installer\Output\Lychee-$env:RELEASE_VERSION-setup.exe" `
+            ".\Lychee-$env:RELEASE_VERSION-portable.zip" `
+            --target "${{ github.sha }}" `
+            --title "$env:RELEASE_TAG" `
+            --latest
