@@ -16,6 +16,7 @@ public sealed partial class MainWindow
 
         OnScan(VirtualKey.B, None, v => v.ToggleView());
         OnScan(VirtualKey.S, Ctrl, v => v.Save());
+        OnScan(VirtualKey.C, Ctrl | Shift, v => v.Copy());
 
         Add(VirtualKey.O, Ctrl, PickFiles);
         Add(VirtualKey.W, Ctrl, () => { if (Tabs.SelectedItem is TabViewItem tab) CloseTab(tab); });

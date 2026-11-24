@@ -34,13 +34,22 @@
                 <TextBlock x:Name="StatusText" Grid.Column="2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"
                            Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Visibility="Collapsed" />
-                <Button x:Name="SaveButton" Grid.Column="3" Width="144" AutomationProperties.Name="Export As" Click="OnSave" Style="{StaticResource AccentButtonStyle}"
-                        ToolTipService.ToolTip="Export the result as a PNG with transparency (Ctrl+S)">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE74E;" FontSize="14" />
-                        <TextBlock Text="Export As" />
-                    </StackPanel>
-                </Button>
+                <Grid Grid.Column="3" Width="144" ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                    <Button x:Name="SaveButton" HorizontalAlignment="Stretch" AutomationProperties.Name="Export As" Click="OnSave" Style="{StaticResource AccentButtonStyle}"
+                            ToolTipService.ToolTip="Export the result as a PNG with transparency (Ctrl+S)">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE74E;" FontSize="14" />
+                            <TextBlock Text="Export As" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="CopyButton" Grid.Column="1" Padding="9,8" AutomationProperties.Name="Copy" Click="OnCopy"
+                            ToolTipService.ToolTip="Copy the result to the clipboard, with transparency (Ctrl+Shift+C)">
+                        <Grid>
+                            <FontIcon x:Name="CopyIcon" Glyph="&#xE8C8;" FontSize="14" />
+                            <FontIcon x:Name="CopiedIcon" Glyph="&#xE73E;" FontSize="14" Visibility="Collapsed" />
+                        </Grid>
+                    </Button>
+                </Grid>
             </Grid>
         </Border>
 

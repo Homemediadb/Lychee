@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -53,6 +54,7 @@ public sealed partial class ScanView : UserControl
         BeforeButton.IsEnabled = AfterButton.IsEnabled = loaded;
         (BeforeButton.IsChecked, AfterButton.IsChecked) = (!showAfter, showAfter);
         SaveButton.IsEnabled = free && results[pass - 1] is not { IsFaulted: true };
+        CopyButton.IsEnabled = SaveButton.IsEnabled;
         string? blackName = blackPath is null ? null : System.IO.Path.GetFileName(blackPath);
         TwoPassButton.IsEnabled = free;
         TwoPassButton.IsChecked = pass == 2;
@@ -204,6 +206,38 @@ public sealed partial class ScanView : UserControl
     void ShowCurrent()
     {
         if (results[Pass - 1] is { IsCompleted: true }) _ = Refresh();
+    }
+
+    public void Copy() => OnCopy(this, new RoutedEventArgs());
+
+    async void OnCopy(object sender, RoutedEventArgs e)
+    {
+        if (scan is null || !CopyButton.IsEnabled) return;
+        int p = Pass;
+        CopyButton.IsEnabled = false;
+        try
+        {
+            var png = await (await Result(p)).EncodePngAsync();
+            var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            await stream.WriteAsync(png.AsBuffer());
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetData("PNG", stream.CloneStream());
+            package.SetBitmap(Windows.Storage.Streams.RandomAccessStreamReference.CreateFromStream(stream.CloneStream()));
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            // Stays after Lychee closes
+            Windows.ApplicationModel.DataTransfer.Clipboard.Flush();
+            (CopyIcon.Visibility, CopiedIcon.Visibility) = (Visibility.Collapsed, Visibility.Visible);
+            await Task.Delay(1500);
+            (CopyIcon.Visibility, CopiedIcon.Visibility) = (Visibility.Visible, Visibility.Collapsed);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Could not copy the result: {ex.Message}");
+        }
+        finally
+        {
+            UpdateState();
+        }
     }
 
     internal static string Dpi(Image image) => image.Dpi is double dpi ? $"{dpi:0.##} dpi" : "dpi not recorded";

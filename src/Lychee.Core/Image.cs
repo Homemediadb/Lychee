@@ -57,14 +57,19 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
 
     public async Task SavePngAsync(string path)
     {
-        if (Channels != 4) throw new InvalidOperationException("only RGBA results are saved");
         var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path));
         if (dir is not null) Directory.CreateDirectory(dir);
+        await File.WriteAllBytesAsync(path, await EncodePngAsync());
+    }
+
+    public async Task<byte[]> EncodePngAsync()
+    {
+        if (Channels != 4) throw new InvalidOperationException("only RGBA results are saved");
         using var png = new MemoryStream();
         var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, png.AsRandomAccessStream());
         encoder.SetPixelData(BitmapPixelFormat.Rgba8, BitmapAlphaMode.Straight, (uint)Width, (uint)Height, Dpi ?? 96, Dpi ?? 96, Pixels);
         await encoder.FlushAsync();
         // No dpi in the scan: none in the result either, not the encoder's 96
-        await File.WriteAllBytesAsync(path, Dpi is null ? Resolution.WithoutPngResolution(png.ToArray()) : png.ToArray());
+        return Dpi is null ? Resolution.WithoutPngResolution(png.ToArray()) : png.ToArray();
     }
 }

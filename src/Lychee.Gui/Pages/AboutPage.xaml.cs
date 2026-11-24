@@ -14,6 +14,7 @@ public sealed partial class AboutPage : UserControl
         ("B", "Toggle Before / After"),
         ("Ctrl + O", "Open scans"),
         ("Ctrl + S", "Export As"),
+        ("Ctrl + Shift + C", "Copy the result"),
         ("Ctrl + W", "Close tab"),
         ("Ctrl + Tab", "Next tab"),
         ("Ctrl + Shift + Tab", "Previous tab"),
