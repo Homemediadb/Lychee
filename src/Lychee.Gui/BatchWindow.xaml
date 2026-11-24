@@ -26,7 +26,7 @@
             <FontIcon Glyph="&#xE896;" FontSize="40" Opacity="0.6" />
             <TextBlock Text="Drop scans here, or click Add Files" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
             <TextBlock HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="420" Style="{StaticResource Hint}"
-                       Text="Each scan is processed in turn and saved as a PNG in the output folder, named like an export. With 2-pass Mode, add the scans over white and over black together: they're paired up automatically." />
+                       Text="Each scan is processed in turn and saved as a PNG in the output folder, named like an export. With Matting, add the scans over white and over black together: they're paired up automatically." />
         </StackPanel>
 
         <Border Grid.Row="3" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="16,12">
@@ -35,7 +35,7 @@
                         ToolTipService.ToolTip="Stop: the scan being worked on isn't saved, and the ones waiting aren't started" />
                 <TextBlock x:Name="ProgressText" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite" />
-                <CheckBox x:Name="TwoPassBox" Grid.Column="2" Content="2-pass Mode" MinWidth="0" Click="OnTwoPassClick" VerticalAlignment="Center">
+                <CheckBox x:Name="TwoPassBox" Grid.Column="2" Content="Matting" MinWidth="0" Click="OnTwoPassClick" VerticalAlignment="Center">
                     <ToolTipService.ToolTip>
                         <ToolTip>
                             <TextBlock TextWrapping="Wrap" MaxWidth="340"

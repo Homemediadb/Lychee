@@ -34,7 +34,7 @@
                 </Grid>
                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
                     <Border Style="{StaticResource StepNumber}"><TextBlock Text="2" Style="{StaticResource StepNumberText}" /></Border>
-                    <TextBlock Text="For see-through clear plastic, add the same disc scanned over black (2-pass)."
+                    <TextBlock Text="For see-through clear plastic, add the same disc scanned over black (Matting)."
                                Grid.Column="1" Style="{StaticResource StepText}" />
                 </Grid>
                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
