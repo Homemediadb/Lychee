@@ -10,6 +10,7 @@ public sealed class Settings
 {
     public ElementTheme Theme { get; set; } = ElementTheme.Default;
     public Backdrop Backdrop { get; set; } = Backdrop.Transparent;
+    public bool HideScanTips { get; set; }
     public string SaveSuffix { get; set; } = "_nobg";
     public string BatchFolder { get; set; } = "";
     public bool BatchTwoPass { get; set; }

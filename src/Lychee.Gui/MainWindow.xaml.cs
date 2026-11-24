@@ -43,11 +43,13 @@ public sealed partial class MainWindow : Window
         AppWindow.Changed += (_, e) => { if (e.DidPresenterChange) DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SquareActive); };
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
         Root.ActualThemeChanged += (_, _) => { SyncCaptionColors(); HighlightTitleButtons(); };
-        Root.Loaded += (_, _) =>
+        Root.Loaded += async (_, _) =>
         {
             SyncCaptionColors();
             FitCaptionGap();
             Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
+            await ShowTipAsync(Root.XamlRoot, "For the best results", ScanAdvice, null,
+                () => Settings.Current.HideScanTips, hide => Settings.Current.HideScanTips = hide);
         };
         DragFromBrand();
         Root.SizeChanged += (_, _) => FitTabs();
@@ -228,6 +230,38 @@ public sealed partial class MainWindow : Window
             }
         }
         if (page is not null && Environment.TickCount64 - pageSelectedAt > 300 && (string?)TitleButtons.SelectedItem?.Tag == page) ShowPage(null);
+    }
+
+    const string ScanAdvice =
+        "Lychee works from the scan exactly as the scanner made it, so:\n\n" +
+        "• Scan raw and lossless: save as PNG (or BMP), not JPEG, at the resolution you want to keep.\n" +
+        "• Don't adjust the color levels, brightness, contrast or gamma, and turn off color correction, auto " +
+        "enhancement, sharpening and dust removal. Lychee reads the white point and the scanner's uneven lighting " +
+        "from the background itself, and these change it.\n" +
+        "• Don't crop to the edge of the disc. Leave a good margin of background all round it, corners included: " +
+        "Lychee measures the background there, and the disc's shadow needs the room to be kept.\n" +
+        "• Close the lid, or lay white paper over the disc, so it's scanned over plain white.";
+
+    internal static async Task<bool> ShowTipAsync(XamlRoot root, string title, string text, string? action, Func<bool> hidden, Action<bool> hide)
+    {
+        if (hidden()) return true;
+        var box = new CheckBox { Content = "Don't show this again", Margin = new Thickness(0, 12, 0, 0) };
+        var dialog = new ContentDialog
+        {
+            XamlRoot = root,
+            Title = title,
+            Content = new StackPanel { Children = { new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }, box } },
+            RequestedTheme = (root.Content as FrameworkElement)?.ActualTheme ?? ElementTheme.Default,
+        };
+        if (action is null) (dialog.CloseButtonText, dialog.DefaultButton) = ("OK", ContentDialogButton.Close);
+        else (dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.DefaultButton) = (action, "Cancel", ContentDialogButton.Primary);
+        bool go = await dialog.ShowAsync() == ContentDialogResult.Primary || action is null;
+        if (box.IsChecked == true)
+        {
+            hide(true);
+            Settings.Current.Save();
+        }
+        return go;
     }
 
     void DragFromBrand()
