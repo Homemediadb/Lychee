@@ -91,7 +91,8 @@ public sealed partial class ScanView : UserControl
             UpdateState();
         }
         if (closed) return;
-        FormatText.Text = $"{scan.Width:N0} × {scan.Height:N0} px · {Dpi(scan)}";
+        SizeText.Text = $"{scan.Width:N0} × {scan.Height:N0} px";
+        DpiText.Text = Dpi(scan);
         await Refresh();
     }
 

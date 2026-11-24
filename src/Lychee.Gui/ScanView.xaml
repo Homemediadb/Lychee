@@ -27,7 +27,9 @@
                     </StackPanel>
                 </ToggleButton>
                 <StackPanel x:Name="InfoPanel" Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock x:Name="FormatText" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True" />
+                    <TextBlock x:Name="SizeText" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True" />
+                    <TextBlock x:Name="DpiText" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </StackPanel>
                 <TextBlock x:Name="StatusText" Grid.Column="2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"
                            Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
