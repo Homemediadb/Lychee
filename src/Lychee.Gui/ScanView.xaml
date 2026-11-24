@@ -15,17 +15,21 @@
                         <TextBlock Text="After" />
                     </ToggleButton>
                 </StackPanel>
-                <ToggleButton x:Name="TwoPassButton" Grid.Column="1" VerticalAlignment="Center" Click="OnTwoPassClick" AutomationProperties.Name="2-pass">
-                    <ToolTipService.ToolTip>
-                        <ToolTip>
-                            <TextBlock x:Name="TwoPassTip" TextWrapping="Wrap" MaxWidth="320" />
-                        </ToolTip>
-                    </ToolTipService.ToolTip>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE8B9;" FontSize="14" />
-                        <TextBlock x:Name="TwoPassText" Text="2-pass…" MaxWidth="200" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                </ToggleButton>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <CheckBox x:Name="MattingBox" MinWidth="0" Padding="0" Click="OnMattingBoxClick" AutomationProperties.Name="Use matting"
+                              ToolTipService.ToolTip="Use the black scan: on, the hole and clear plastic are matted; off, the white scan alone" />
+                    <Button x:Name="MattingButton" Click="OnMattingClick" AutomationProperties.Name="Matting">
+                        <ToolTipService.ToolTip>
+                            <ToolTip>
+                                <TextBlock x:Name="MattingTip" TextWrapping="Wrap" MaxWidth="320" />
+                            </ToolTip>
+                        </ToolTipService.ToolTip>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE8B9;" FontSize="14" />
+                            <TextBlock Text="Matting…" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
                 <StackPanel x:Name="InfoPanel" Grid.Column="2" VerticalAlignment="Center">
                     <TextBlock x:Name="SizeText" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True" />
                     <TextBlock x:Name="DpiText" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True"

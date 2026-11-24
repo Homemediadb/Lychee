@@ -12,6 +12,7 @@ public sealed class Settings
     public Backdrop Backdrop { get; set; } = Backdrop.Transparent;
     public ElementTheme BackdropTheme { get; set; } = ElementTheme.Dark;
     public bool HideScanTips { get; set; }
+    public bool HideMattingTips { get; set; }
     public string SaveSuffix { get; set; } = "_nobg";
     public string BatchFolder { get; set; } = "";
     public bool BatchTwoPass { get; set; }

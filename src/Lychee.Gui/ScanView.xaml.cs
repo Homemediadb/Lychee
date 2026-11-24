@@ -16,7 +16,7 @@ public sealed partial class ScanView : UserControl
     Image? scan, black;
     string? blackPath;
     readonly Task<Image>?[] results = new Task<Image>?[2];
-    bool showAfter = true, opening = true, choosingBlack, closed;
+    bool showAfter = true, opening = true, choosingBlack, closed, matting;
     IEnumerable<Controls.StageView> Previews => Backdrops.Thumbnails.Prepend(Preview);
 
     public ScanView(MainWindow owner, string path)
@@ -34,7 +34,7 @@ public sealed partial class ScanView : UserControl
 
     public string Path { get; }
 
-    int Pass => black is not null ? 2 : 1;
+    int Pass => black is not null && matting ? 2 : 1;
 
     public SaveState SaveState
     {
@@ -55,13 +55,12 @@ public sealed partial class ScanView : UserControl
         (BeforeButton.IsChecked, AfterButton.IsChecked) = (!showAfter, showAfter);
         SaveButton.IsEnabled = free && results[pass - 1] is not { IsFaulted: true };
         CopyButton.IsEnabled = SaveButton.IsEnabled;
-        string? blackName = blackPath is null ? null : System.IO.Path.GetFileName(blackPath);
-        TwoPassButton.IsEnabled = free;
-        TwoPassButton.IsChecked = pass == 2;
-        TwoPassText.Text = blackName is null ? "2-pass…" : $"2-pass: {blackName}";
-        TwoPassTip.Text = blackName is null
-            ? "2-pass: add the same disc scanned again with black paper behind it, without moving it or changing the scan settings. The difference between the two shows how see-through each part is, so the clear plastic becomes see-through too, not just the hole."
-            : $"2-pass with {blackPath} over black. Click to drop it and go back to 1-pass, where the hole is transparent and the clear plastic opaque.";
+        MattingButton.IsEnabled = free;
+        MattingBox.IsEnabled = free && black is not null;
+        MattingBox.IsChecked = pass == 2;
+        MattingTip.Text = blackPath is null
+            ? "Matting: add the same disc scanned again with black paper behind it, without moving it or changing the scan settings. The difference between the two shows how see-through each part is, so the clear plastic becomes see-through too, not just the hole."
+            : $"Matting with {blackPath} over black (the box beside this turns it on and off). Click to choose another black scan.";
         StateChanged?.Invoke();
     }
 
@@ -159,16 +158,29 @@ public sealed partial class ScanView : UserControl
         else UpdateState();
     }
 
-    async void OnTwoPassClick(object sender, RoutedEventArgs e)
+    async void OnMattingBoxClick(object sender, RoutedEventArgs e)
     {
-        if (black is not null) (black, blackPath, results[1]) = (null, null, null);
-        else if (!await ChooseBlack())
-        {
-            UpdateState();
-            return;
-        }
+        matting = MattingBox.IsChecked == true && black is not null;
         await Refresh();
     }
+
+    async void OnMattingClick(object sender, RoutedEventArgs e)
+    {
+        if (!await MainWindow.ShowTipAsync(XamlRoot, "Matting", MattingAdvice, "Choose the black scan",
+                () => Settings.Current.HideMattingTips, hide => Settings.Current.HideMattingTips = hide))
+            return;
+        if (await ChooseBlack()) await Refresh();
+    }
+
+    const string MattingAdvice =
+        "Matting uses a second scan of the same disc, with black paper (or anything black and matte) laid over it in " +
+        "place of the white lid, so the disc is scanned over black.\n\n" +
+        "Don't move the disc between the two scans, and scan both with exactly the same settings and area. Lychee " +
+        "compares the two pixel by pixel: what changes between white and black is how see-through each part is. The " +
+        "hole and the clear plastic ring round it then come out with their real transparency and color, instead of " +
+        "the clear plastic being opaque.\n\n" +
+        "Next, choose that scan over black. The box beside Matting turns it on and off afterwards, without choosing " +
+        "it again.";
 
     async Task<bool> ChooseBlack()
     {
@@ -186,7 +198,7 @@ public sealed partial class ScanView : UserControl
                 SetStatus($"{System.IO.Path.GetFileName(path)} is {opened.Width:N0} × {opened.Height:N0} px, not {scan.Width:N0} × {scan.Height:N0} like this scan: scan both the same way, without moving the disc.");
                 return false;
             }
-            (black, blackPath, results[1]) = (opened, path, null);
+            (black, blackPath, results[1], matting) = (opened, path, null, true);
             SetStatus("");
             return true;
         }
@@ -278,11 +290,10 @@ public sealed partial class ScanView : UserControl
             }
             var facts = new List<(string, string?)>
             {
-                ("Mode", p == 1 ? "1-pass" : "2-pass"),
                 ("Size", $"{result.Width:N0} × {result.Height:N0} px"),
             };
             facts.Add(("Resolution", Dpi(result)));
-            if (p == 2) facts.Add(("Black scan", System.IO.Path.GetFileName(blackPath)));
+            facts.Add(("Matting", p == 2 ? System.IO.Path.GetFileName(blackPath) : "Off"));
             SaveOverlay.ShowDone(file.Path, [.. facts]);
             SaveState = SaveState.Saved;
         }
