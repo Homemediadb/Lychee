@@ -49,6 +49,7 @@ public sealed partial class MainWindow : Window
             FitCaptionGap();
             Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
         };
+        DragFromBrand();
         Root.SizeChanged += (_, _) => FitTabs();
         Welcome.OpenRequested += PickFiles;
         Welcome.BatchRequested += OpenBatch;
@@ -229,6 +230,26 @@ public sealed partial class MainWindow : Window
         if (page is not null && Environment.TickCount64 - pageSelectedAt > 300 && (string?)TitleButtons.SelectedItem?.Tag == page) ShowPage(null);
     }
 
+    void DragFromBrand()
+    {
+        Windows.Foundation.Point? from = null;
+        Brand.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, e) =>
+        {
+            if (e.GetCurrentPoint(Brand).Properties.IsLeftButtonPressed) from = e.GetCurrentPoint(Root).Position;
+        }), handledEventsToo: true);
+        Brand.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler((_, _) => from = null), handledEventsToo: true);
+        Brand.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler((_, e) =>
+        {
+            if (from is not { } start) return;
+            var now = e.GetCurrentPoint(Root).Position;
+            if (Math.Abs(now.X - start.X) < 4 && Math.Abs(now.Y - start.Y) < 4) return;
+            from = null;
+            Brand.ReleasePointerCaptures();
+            ReleaseCapture();
+            SendMessage(WindowNative.GetWindowHandle(this), 0x0112, 0xF012, 0);
+        }), handledEventsToo: true);
+    }
+
     void OnBrand(object sender, RoutedEventArgs e) => ShowPage(null);
 
     void ShowPage(string? tag)
@@ -307,4 +328,6 @@ public sealed partial class MainWindow : Window
     }
 
     [LibraryImport("user32.dll")] private static partial uint GetDpiForWindow(nint hwnd);
+    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool ReleaseCapture();
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")] private static partial nint SendMessage(nint hwnd, uint msg, nint wParam, nint lParam);
 }
