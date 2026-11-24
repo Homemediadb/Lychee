@@ -1,0 +1,5 @@
+# PowerShell scripts need CRLF
+*.ps1   text eol=crlf
+*.iss   text eol=crlf
+
+*       text=auto
