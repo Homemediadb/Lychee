@@ -53,13 +53,9 @@ public sealed partial class ScanView : UserControl
         BeforeButton.IsEnabled = AfterButton.IsEnabled = loaded;
         (BeforeButton.IsChecked, AfterButton.IsChecked) = (!showAfter, showAfter);
         SaveButton.IsEnabled = free && results[pass - 1] is not { IsFaulted: true };
-        bool working = results[pass - 1] is { IsCompleted: false };
-        (AfterRing.IsActive, AfterRing.Visibility) = (working, working ? Visibility.Visible : Visibility.Collapsed);
         string? blackName = blackPath is null ? null : System.IO.Path.GetFileName(blackPath);
         TwoPassButton.IsEnabled = free;
         TwoPassButton.IsChecked = pass == 2;
-        TwoPassRing.IsActive = choosingBlack;
-        TwoPassIcon.Opacity = choosingBlack ? 0 : 1;
         TwoPassText.Text = blackName is null ? "2-pass…" : $"2-pass: {blackName}";
         TwoPassTip.Text = blackName is null
             ? "2-pass: add the same disc scanned again with black paper behind it, without moving it or changing the scan settings. The difference between the two shows how see-through each part is, so the clear plastic becomes see-through too, not just the hole."
@@ -176,12 +172,14 @@ public sealed partial class ScanView : UserControl
         if (await owner.PickScansAsync(multiple: false) is not [var path] || scan is null) return false;
         choosingBlack = true;
         UpdateState();
+        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
         SetStatus("Opening the black scan…");
         try
         {
             var opened = await Task.Run(() => Image.LoadAsync(path));
             if (opened.Width != scan.Width || opened.Height != scan.Height)
             {
+                ShowCurrent();
                 SetStatus($"{System.IO.Path.GetFileName(path)} is {opened.Width:N0} × {opened.Height:N0} px, not {scan.Width:N0} × {scan.Height:N0} like this scan: scan both the same way, without moving the disc.");
                 return false;
             }
@@ -191,6 +189,7 @@ public sealed partial class ScanView : UserControl
         }
         catch (Exception ex)
         {
+            ShowCurrent();
             SetStatus($"Could not open {System.IO.Path.GetFileName(path)}: {ex.Message}");
             return false;
         }
@@ -199,6 +198,11 @@ public sealed partial class ScanView : UserControl
             choosingBlack = false;
             UpdateState();
         }
+    }
+
+    void ShowCurrent()
+    {
+        if (results[Pass - 1] is { IsCompleted: true }) _ = Refresh();
     }
 
     internal static string Dpi(Image image) => image.Dpi is double dpi ? $"{dpi:0.##} dpi" : "dpi not recorded";
