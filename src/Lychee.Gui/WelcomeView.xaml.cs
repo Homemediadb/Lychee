@@ -9,6 +9,11 @@ public sealed partial class WelcomeView : UserControl
 
     public event Action? OpenRequested;
 
+    public bool Busy
+    {
+        set => (Spinner.IsActive, Spinner.Visibility, Steps.Visibility) = (value, value ? Visibility.Visible : Visibility.Collapsed, value ? Visibility.Collapsed : Visibility.Visible);
+    }
+
     public event Action? BatchRequested;
 
     void OnBatch(object sender, RoutedEventArgs e) => BatchRequested?.Invoke();

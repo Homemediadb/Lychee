@@ -90,9 +90,11 @@ public sealed partial class MainWindow : Window
             Open(scans);
             return;
         }
+        Welcome.Busy = true;
         List<(Pairing.Scan White, Pairing.Scan Black)> pairs;
         try { pairs = (await Task.Run(() => Pairing.MatchFilesAsync(scans))).Pairs; }
         catch { pairs = []; }
+        finally { Welcome.Busy = false; }
         var blacks = pairs.ToDictionary(p => p.White.Path, p => p.Black.Path);
         var paired = blacks.Values.ToHashSet();
         Open(scans.Where(s => !paired.Contains(s)), blacks);
