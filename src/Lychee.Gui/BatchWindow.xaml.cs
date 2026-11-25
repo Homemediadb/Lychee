@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
@@ -170,8 +171,9 @@ sealed class BatchRow
     readonly FontIcon outcome = new() { FontSize = 18, Visibility = Visibility.Collapsed };
     readonly Controls.StageView preview = new() { Interactive = false, MaxSide = 160, Backdrop = Backdrop.Checkerboard, Square = 6, Width = 72, Height = 72, IsHitTestVisible = false };
     readonly TextBlock size = Caption("Waiting…"), file = Caption("");
-    readonly Button view = new() { Content = "View Image", IsEnabled = false, VerticalAlignment = VerticalAlignment.Center };
-    readonly Button stage = new() { Content = "Preview", IsEnabled = false, VerticalAlignment = VerticalAlignment.Center };
+    readonly FontIcon copyIcon = Icon("");
+    readonly Button copy, stage, view;
+    readonly StackPanel buttons = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     string? output;
 
     public Border Element { get; }
@@ -209,7 +211,15 @@ sealed class BatchRow
             ColumnDefinitions = { new() { Width = GridLength.Auto }, new() { Width = GridLength.Auto }, new(), new() { Width = GridLength.Auto } },
             Children = { status, preview, text },
         };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { stage, view } };
+        copy = new Button { Content = copyIcon, Padding = new Thickness(9, 8, 9, 8) };
+        stage = new Button { Content = Labelled("", "Preview") };
+        view = new Button { Content = Labelled("", "Open") };
+        Tip(copy, "Copy", "Copy the result to the clipboard, with transparency");
+        Tip(stage, "Preview", "The result on a stage of its own, with the backdrops beside it");
+        Tip(view, "Open", "Open the saved PNG in the default viewer");
+        buttons.Children.Add(copy);
+        buttons.Children.Add(stage);
+        buttons.Children.Add(view);
         var visual = ElementCompositionPreview.GetElementVisual(preview);
         var corners = visual.Compositor.CreateRoundedRectangleGeometry();
         (corners.Size, corners.CornerRadius) = (new((float)preview.Width, (float)preview.Height), new(4, 4));
@@ -218,6 +228,23 @@ sealed class BatchRow
         Grid.SetColumn(preview, 1);
         Grid.SetColumn(text, 2);
         Grid.SetColumn(buttons, 3);
+        copy.Click += async (_, _) =>
+        {
+            if (output is null) return;
+            copy.IsEnabled = false;
+            try
+            {
+                await ScanView.CopyPngAsync(await File.ReadAllBytesAsync(output));
+                copyIcon.Glyph = "";
+            }
+            catch
+            {
+                copyIcon.Glyph = "";
+            }
+            await Task.Delay(1500);
+            copyIcon.Glyph = "";
+            copy.IsEnabled = true;
+        };
         stage.Click += (_, _) =>
         {
             if (output is not null) new PreviewWindow(output).Activate();
@@ -227,6 +254,21 @@ sealed class BatchRow
             if (output is not null) await Windows.System.Launcher.LaunchFileAsync(await StorageFile.GetFileFromPathAsync(output));
         };
         Element = new Border { Style = (Style)Application.Current.Resources["Card"], Padding = new Thickness(12, 8, 12, 8), Child = row };
+    }
+
+    static FontIcon Icon(string glyph) => new() { Glyph = glyph, FontSize = 14 };
+
+    static StackPanel Labelled(string glyph, string label) => new()
+    {
+        Orientation = Orientation.Horizontal,
+        Spacing = 8,
+        Children = { Icon(glyph), new TextBlock { Text = label } },
+    };
+
+    static void Tip(Button button, string name, string tip)
+    {
+        AutomationProperties.SetName(button, name);
+        ToolTipService.SetToolTip(button, tip);
     }
 
     static TextBlock Caption(string text) => new()
@@ -263,8 +305,8 @@ sealed class BatchRow
             await preview.ShowAsync(result);
             Describe(result, new FileInfo(dst).Length);
             output = dst;
-            ToolTipService.SetToolTip(view, dst);
-            view.IsEnabled = stage.IsEnabled = true;
+            ToolTipService.SetToolTip(view, $"Open {dst} in the default viewer");
+            buttons.Visibility = Visibility.Visible;
             Finish(failed: false);
         }
         catch (OperationCanceledException)

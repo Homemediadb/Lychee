@@ -241,15 +241,7 @@ public sealed partial class ScanView : UserControl
         CopyButton.IsEnabled = false;
         try
         {
-            var png = await (await Final(p)).EncodePngAsync();
-            var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-            await stream.WriteAsync(png.AsBuffer());
-            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            package.SetData("PNG", stream.CloneStream());
-            package.SetBitmap(Windows.Storage.Streams.RandomAccessStreamReference.CreateFromStream(stream.CloneStream()));
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-            // Stays after Lychee closes
-            Windows.ApplicationModel.DataTransfer.Clipboard.Flush();
+            await CopyPngAsync(await (await Final(p)).EncodePngAsync());
             (CopyIcon.Visibility, CopiedIcon.Visibility) = (Visibility.Collapsed, Visibility.Visible);
             await Task.Delay(1500);
             (CopyIcon.Visibility, CopiedIcon.Visibility) = (Visibility.Visible, Visibility.Collapsed);
@@ -269,6 +261,18 @@ public sealed partial class ScanView : UserControl
         SizeText.Text = image is null ? none : $"{image.Width:N0} × {image.Height:N0} px";
         DpiText.Text = image is null ? "" : $"{image.Width * (double)image.Height / 1e6:0.#} MP · {Dpi(image)}";
         DpiText.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    internal static async Task CopyPngAsync(byte[] png)
+    {
+        var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+        await stream.WriteAsync(png.AsBuffer());
+        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        package.SetData("PNG", stream.CloneStream());
+        package.SetBitmap(Windows.Storage.Streams.RandomAccessStreamReference.CreateFromStream(stream.CloneStream()));
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+        // Stays after Lychee closes
+        Windows.ApplicationModel.DataTransfer.Clipboard.Flush();
     }
 
     internal static string FileSize(long bytes) => bytes switch
