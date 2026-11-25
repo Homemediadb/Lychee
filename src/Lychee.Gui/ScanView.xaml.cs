@@ -270,6 +270,13 @@ public sealed partial class ScanView : UserControl
         DpiText.Text = image is null ? "" : $"{image.Width * (double)image.Height / 1e6:0.#} MP · {Dpi(image)}";
     }
 
+    internal static string FileSize(long bytes) => bytes switch
+    {
+        >= 1 << 30 => $"{bytes / (double)(1 << 30):0.0} GB",
+        >= 1 << 20 => $"{bytes / (double)(1 << 20):0.0} MB",
+        _ => $"{bytes / 1024.0:0} KB",
+    };
+
     internal static string Dpi(Image image) => image.Dpi is double dpi ? $"{dpi:0.##} dpi" : "dpi not recorded";
 
     public FrameworkElement StageSpace => StageArea;
@@ -308,9 +315,10 @@ public sealed partial class ScanView : UserControl
             }
             var facts = new List<(string, string?)>
             {
-                ("Size", $"{result.Width:N0} × {result.Height:N0} px"),
+                ("Resolution", $"{result.Width:N0} × {result.Height:N0} px"),
+                ("DPI", result.Dpi is double dpi ? $"{dpi:0.##}" : "Not recorded"),
+                ("File size", FileSize(new FileInfo(file.Path).Length)),
             };
-            facts.Add(("Resolution", Dpi(result)));
             facts.Add(("Matting", p == 2 ? System.IO.Path.GetFileName(blackPath) : "Off"));
             if (angle != 0) facts.Add(("Rotation", $"{angle:0.#}°"));
             SaveOverlay.ShowDone(file.Path, [.. facts]);

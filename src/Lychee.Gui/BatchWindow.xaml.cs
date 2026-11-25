@@ -283,12 +283,7 @@ sealed class BatchRow
     void Describe(Image image, long bytes)
     {
         size.Text = $"{image.Width:N0} × {image.Height:N0} px · {ScanView.Dpi(image)}";
-        file.Text = bytes switch
-        {
-            >= 1 << 30 => $"{bytes / (double)(1 << 30):0.0} GB",
-            >= 1 << 20 => $"{bytes / (double)(1 << 20):0.0} MB",
-            _ => $"{bytes / 1024.0:0} KB",
-        };
+        file.Text = ScanView.FileSize(bytes);
     }
 
     public void Cancelled()
