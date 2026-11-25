@@ -84,7 +84,7 @@ public sealed partial class ScanView : UserControl
         catch (Exception ex)
         {
             foreach (var v in Previews) v.Clear("Could not open this scan");
-            SizeText.Text = "";
+            Describe(null, "");
             SetStatus(ex.Message);
             return;
         }
@@ -94,8 +94,6 @@ public sealed partial class ScanView : UserControl
             UpdateState();
         }
         if (closed) return;
-        SizeText.Text = $"{scan.Width:N0} × {scan.Height:N0} px";
-        DpiText.Text = $"{scan.Width * (double)scan.Height / 1e6:0.#} MP · {Dpi(scan)}";
         if (pairedBlack is { } b) await OpenBlack(b);
         await Refresh();
     }
@@ -127,6 +125,7 @@ public sealed partial class ScanView : UserControl
         int p = Pass;
         if (!showAfter) _ = Preview.ShowAsync(opened);
         var job = Result(p);
+        Describe(!showAfter ? opened : job.IsCompletedSuccessfully ? job.Result : null);
         if (!job.IsCompleted)
         {
             foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
@@ -142,12 +141,14 @@ public sealed partial class ScanView : UserControl
         {
             if (Pass != p || closed) return;
             foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.Clear("Could not remove the background");
+            if (showAfter) Describe(null, "");
             SetStatus(ex.Message);
             UpdateState();
             return;
         }
         if (Pass != p || closed) return;
         SetStatus("");
+        if (showAfter) Describe(result);
         Preview.FitTo(result);
         await Task.WhenAll((showAfter ? Previews : Backdrops.Thumbnails).Select(v => v.ShowAsync(result)));
     }
@@ -261,6 +262,12 @@ public sealed partial class ScanView : UserControl
         {
             UpdateState();
         }
+    }
+
+    void Describe(Image? image, string none = "Processing…")
+    {
+        SizeText.Text = image is null ? none : $"{image.Width:N0} × {image.Height:N0} px";
+        DpiText.Text = image is null ? "" : $"{image.Width * (double)image.Height / 1e6:0.#} MP · {Dpi(image)}";
     }
 
     internal static string Dpi(Image image) => image.Dpi is double dpi ? $"{dpi:0.##} dpi" : "dpi not recorded";
