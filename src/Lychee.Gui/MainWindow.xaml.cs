@@ -47,12 +47,13 @@ public sealed partial class MainWindow : Window
         {
             SyncCaptionColors();
             FitCaptionGap();
+            StyleBrand();
             Settings.Current.FitBackdropTo(Root.ActualTheme);
             Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
             await ShowTipAsync(Root.XamlRoot, "For the best results", ScanAdvice, null,
                 () => Settings.Current.HideScanTips, hide => Settings.Current.HideScanTips = hide);
         };
-        DragFromBrand();
+        InputNonClientPointerSource.GetForWindowId(AppWindow.Id).CaptionTapped += OnCaptionTapped;
         Root.SizeChanged += (_, _) => FitTabs();
         Welcome.OpenRequested += PickFiles;
         Welcome.BatchRequested += OpenBatch;
@@ -265,27 +266,25 @@ public sealed partial class MainWindow : Window
         return go;
     }
 
-    void DragFromBrand()
+    FrameworkElement? brandIcon, brandName;
+
+    void StyleBrand()
     {
-        Windows.Foundation.Point? from = null;
-        Brand.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, e) =>
-        {
-            if (e.GetCurrentPoint(Brand).Properties.IsLeftButtonPressed) from = e.GetCurrentPoint(Root).Position;
-        }), handledEventsToo: true);
-        Brand.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler((_, _) => from = null), handledEventsToo: true);
-        Brand.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler((_, e) =>
-        {
-            if (from is not { } start) return;
-            var now = e.GetCurrentPoint(Root).Position;
-            if (Math.Abs(now.X - start.X) < 4 && Math.Abs(now.Y - start.Y) < 4) return;
-            from = null;
-            Brand.ReleasePointerCaptures();
-            ReleaseCapture();
-            SendMessage(WindowNative.GetWindowHandle(this), 0x0112, 0xF012, 0);
-        }), handledEventsToo: true);
+        (brandIcon, brandName) = (Find(AppTitleBar, "PART_Icon"), Find(AppTitleBar, "PART_TitleText"));
+        if (brandName is TextBlock name) (name.FontSize, name.FontWeight) = (14, Microsoft.UI.Text.FontWeights.SemiBold);
+        FitTabs();
     }
 
-    void OnBrand(object sender, RoutedEventArgs e) => ShowPage(null);
+    double BrandRight => brandName is { } n ? n.TransformToVisual(Root).TransformPoint(new(n.ActualWidth + n.Margin.Right, 0)).X : 0;
+
+    void OnCaptionTapped(InputNonClientPointerSource sender, NonClientCaptionTappedEventArgs e)
+    {
+        if (brandIcon is null) return;
+        // The tap is in physical pixels
+        double scale = Root.XamlRoot.RasterizationScale;
+        double left = brandIcon.TransformToVisual(Root).TransformPoint(default).X, x = e.Point.X / scale;
+        if (x >= left && x <= BrandRight) ShowPage(null);
+    }
 
     void ShowPage(string? tag)
     {
@@ -328,23 +327,23 @@ public sealed partial class MainWindow : Window
     {
         if (Root.XamlRoot is null) return;
         double captions = AppWindow.TitleBar.RightInset / Root.XamlRoot.RasterizationScale;
-        Tabs.MaxWidth = Math.Max(0, Root.ActualWidth - Brand.ActualWidth - TitleButtons.ActualWidth - captions);
+        Tabs.MaxWidth = Math.Max(0, Root.ActualWidth - BrandRight - TitleButtons.ActualWidth - captions);
     }
 
     static void RoundAllCorners(TabViewItem tab)
     {
         if (Find(tab, "TabContainer") is Grid container) container.CornerRadius = tab.CornerRadius;
+    }
 
-        static FrameworkElement? Find(DependencyObject parent, string name)
+    static FrameworkElement? Find(DependencyObject parent, string name)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is FrameworkElement { Name: var n } e && n == name) return e;
-                if (Find(child, name) is { } found) return found;
-            }
-            return null;
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is FrameworkElement { Name: var n } e && n == name) return e;
+            if (Find(child, name) is { } found) return found;
         }
+        return null;
     }
 
     // TitleBar (WinAppSDK 2.5) reserves RightInset as DIPs, not px; drop when fixed
@@ -363,6 +362,4 @@ public sealed partial class MainWindow : Window
     }
 
     [LibraryImport("user32.dll")] private static partial uint GetDpiForWindow(nint hwnd);
-    [LibraryImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool ReleaseCapture();
-    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")] private static partial nint SendMessage(nint hwnd, uint msg, nint wParam, nint lParam);
 }
