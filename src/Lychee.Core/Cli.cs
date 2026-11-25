@@ -59,7 +59,8 @@ public static class Cli
                 var scan = Image.LoadAsync(f).GetAwaiter().GetResult();
                 var black = blacks.Count > 0 ? Image.LoadAsync(blacks[i]).GetAwaiter().GetResult() : null;
                 var dst = OutputPath(f, outDir);
-                Remover.RemoveBackground(scan, black).SavePngAsync(dst).GetAwaiter().GetResult();
+                var result = Remover.RemoveBackground(scan, black);
+                result.Rotated(Upright.FindAsync(result).GetAwaiter().GetResult()).SavePngAsync(dst).GetAwaiter().GetResult();
                 output.WriteLine($"{f} -> {dst}");
             }
             catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException
