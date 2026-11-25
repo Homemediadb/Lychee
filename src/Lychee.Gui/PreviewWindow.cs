@@ -60,16 +60,36 @@ public sealed partial class PreviewWindow : Window
         Settings.Changed += ApplyTheme;
         root.ActualThemeChanged += (_, _) => SyncCaptionColors();
         Closed += (_, _) => Settings.Changed -= ApplyTheme;
-        _ = Show(path);
+        _ = Show(path, titleBar);
     }
 
-    async Task Show(string path)
+    async Task Show(string path, TitleBar titleBar)
     {
         var views = backdrops.Thumbnails.Prepend(stage).ToList();
         foreach (var v in views) v.ShowWorking();
         try
         {
             var result = await Task.Run(() => Image.LoadAsync(path, alpha: true));
+            var saving = Task.CompletedTask;
+            stage.Rotated += a =>
+            {
+                foreach (var t in backdrops.Thumbnails) t.Angle = a;
+                saving = Turn(saving, a);
+            };
+            async Task Turn(Task before, double a)
+            {
+                await before;
+                titleBar.Subtitle = "Saving…";
+                try
+                {
+                    await Task.Run(() => result.Rotated(a).SavePngAsync(path));
+                    titleBar.Subtitle = a == 0 ? "Saved" : $"Turned {a:0.#}°, saved";
+                }
+                catch (Exception e)
+                {
+                    titleBar.Subtitle = $"Could not save it: {e.Message}";
+                }
+            }
             stage.FitTo(result);
             await Task.WhenAll(views.Select(v => v.ShowAsync(result)));
         }

@@ -55,6 +55,38 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
         return (new Image((int)transform.ScaledWidth, (int)transform.ScaledHeight, 3, rgb), w, h);
     }
 
+    // Bilinear on premultiplied alpha, so transparent pixels lend no color
+    public Image Rotated(double degrees)
+    {
+        if (Channels != 4) throw new InvalidOperationException("only RGBA results are rotated");
+        if (degrees % 360 == 0) return this;
+        int w = Width, h = Height;
+        var src = Pixels;
+        var o = new byte[w * h * 4];
+        double t = degrees * Math.PI / 180, c = Math.Cos(t), s = Math.Sin(t), cx = (w - 1) / 2.0, cy = (h - 1) / 2.0;
+        Parallel.For(0, h, y =>
+        {
+            for (int x = 0; x < w; x++)
+            {
+                double dx = x - cx, dy = y - cy, sx = cx + dx * c + dy * s, sy = cy - dx * s + dy * c;
+                int x0 = (int)Math.Floor(sx), y0 = (int)Math.Floor(sy);
+                double fx = sx - x0, fy = sy - y0, r = 0, g = 0, b = 0, a = 0;
+                for (int j = 0; j < 4; j++)
+                {
+                    int xx = x0 + (j & 1), yy = y0 + (j >> 1);
+                    if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+                    int i = 4 * (yy * w + xx);
+                    double k = ((j & 1) == 1 ? fx : 1 - fx) * ((j >> 1) == 1 ? fy : 1 - fy), ka = k * src[i + 3];
+                    (r, g, b, a) = (r + ka * src[i], g + ka * src[i + 1], b + ka * src[i + 2], a + ka);
+                }
+                if (a <= 0) continue;
+                int d = 4 * (y * w + x);
+                (o[d], o[d + 1], o[d + 2], o[d + 3]) = ((byte)Math.Round(r / a), (byte)Math.Round(g / a), (byte)Math.Round(b / a), (byte)Math.Round(a));
+            }
+        });
+        return new Image(w, h, 4, o, Dpi) { OriginX = OriginX, OriginY = OriginY };
+    }
+
     public async Task SavePngAsync(string path)
     {
         var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path));

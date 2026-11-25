@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Shapes;
 using Windows.Foundation;
 using Windows.UI;
 using Image = Lychee.Image;
@@ -24,6 +25,9 @@ public sealed partial class StageView : UserControl
     double zoom = 1, x0, y0;
     bool fitted = true;
     Point? dragFrom;
+    double? turnFrom;
+    double angle, turned;
+    int shownW, shownH;
     int version;
     int originX, originY;
     (int X, int Y, int W, int H)? reference;
@@ -51,6 +55,14 @@ public sealed partial class StageView : UserControl
 
     Backdrop Shown => Backdrop ?? Settings.Current.Backdrop;
 
+    public double Angle
+    {
+        get => angle;
+        set { angle = value; Apply(); }
+    }
+
+    public event Action<double>? Rotated;
+
     double DpiScale => XamlRoot?.RasterizationScale ?? 1;
 
     public async Task ShowAsync(Image result)
@@ -68,7 +80,7 @@ public sealed partial class StageView : UserControl
             x0 += (result.OriginX - originX) * zoom / DpiScale;
             y0 += (result.OriginY - originY) * zoom / DpiScale;
         }
-        (originX, originY) = (result.OriginX, result.OriginY);
+        (originX, originY, shownW, shownH) = (result.OriginX, result.OriginY, result.Width, result.Height);
         (full, small) = (f, s);
         fullBitmap = Bitmap(fullBitmap, f);
         smallBitmap = ReferenceEquals(s, f) ? fullBitmap : Bitmap(smallBitmap, s);
@@ -159,12 +171,48 @@ public sealed partial class StageView : UserControl
         var source = zoom <= (double)s.W / f.W * 1.25 ? smallBitmap : fullBitmap;
         if (!ReferenceEquals(Picture.Source, source)) Picture.Source = source;
         (Picture.Width, Picture.Height) = (f.W / DpiScale, f.H / DpiScale);
-        (Place.ScaleX, Place.ScaleY, Place.TranslateX, Place.TranslateY) = (zoom, zoom, x0, y0);
+        var (qx, qy) = Pivot;
+        double t = angle * Math.PI / 180, cos = Math.Cos(t), sin = Math.Sin(t);
+        (Place.ScaleX, Place.ScaleY, Place.Rotation) = (zoom, zoom, angle);
+        (Place.TranslateX, Place.TranslateY) = (x0 + zoom * (qx - (cos * qx - sin * qy)), y0 + zoom * (qy - (sin * qx + cos * qy)));
         double px = 1 / DpiScale;
         Canvas.SetLeft(Frame, x0 - px);
         Canvas.SetTop(Frame, y0 - px);
         (Frame.Width, Frame.Height, Frame.StrokeThickness) = (f.W * zoom / DpiScale + 2 * px, f.H * zoom / DpiScale + 2 * px, px);
-        ZoomText.Text = zoom >= 0.1 ? $"{zoom * 100:0}%" : $"{zoom * 100:0.0}%";
+        (FrameTurn.Angle, FrameTurn.CenterX, FrameTurn.CenterY) = (angle, zoom * qx + px, zoom * qy + px);
+        if (turnFrom is not null) DrawGuides();
+        ZoomText.Text = (zoom >= 0.1 ? $"{zoom * 100:0}%" : $"{zoom * 100:0.0}%") + (angle == 0 ? "" : $" · {angle:0.#}°");
+    }
+
+    (double X, double Y) Pivot
+    {
+        get
+        {
+            if (full is not { } f || shownW == 0) return (0, 0);
+            var (px, py) = reference is { } r ? (r.X + r.W / 2.0, r.Y + r.H / 2.0) : (originX + shownW / 2.0, originY + shownH / 2.0);
+            return ((px - originX) * f.W / shownW / DpiScale, (py - originY) * f.H / shownH / DpiScale);
+        }
+    }
+
+    void DrawGuides()
+    {
+        Guides.Children.Clear();
+        var (qx, qy) = Pivot;
+        double w = Root.ActualWidth, h = Root.ActualHeight, step = Math.Min(w, h) / 8, px = 1 / DpiScale;
+        double cx = x0 + zoom * qx, cy = y0 + zoom * qy;
+        void Add(double x1, double y1, double x2, double y2, bool middle) => Guides.Children.Add(new Line
+        {
+            X1 = x1, Y1 = y1, X2 = x2, Y2 = y2, Stroke = Frame.Stroke, StrokeThickness = middle ? 2 * px : px, Opacity = middle ? 1 : 0.6,
+        });
+        for (double x = (cx % step + step) % step; x < w; x += step) Add(x, 0, x, h, Math.Abs(x - cx) < 0.5);
+        for (double y = (cy % step + step) % step; y < h; y += step) Add(0, y, w, y, Math.Abs(y - cy) < 0.5);
+        Guides.Visibility = Visibility.Visible;
+    }
+
+    double Bearing(Point at)
+    {
+        var (qx, qy) = Pivot;
+        return Math.Atan2(at.Y - (y0 + zoom * qy), at.X - (x0 + zoom * qx)) * 180 / Math.PI;
     }
 
     void ApplyBackdrop()
@@ -304,15 +352,32 @@ public sealed partial class StageView : UserControl
     void OnPressed(object sender, PointerRoutedEventArgs e)
     {
         var point = e.GetCurrentPoint(Root);
-        if (!Interactive || full is null || !(point.Properties.IsLeftButtonPressed || point.Properties.IsMiddleButtonPressed)) return;
-        dragFrom = point.Position;
+        if (!Interactive || full is null || dragFrom is not null || turnFrom is not null) return;
+        // Turning waits for the disc's center, so Before and After turn about the same point
+        if (point.Properties.IsRightButtonPressed && reference is not null)
+        {
+            (turnFrom, turned) = (Bearing(point.Position), angle);
+            DrawGuides();
+        }
+        else if (point.Properties.IsLeftButtonPressed || point.Properties.IsMiddleButtonPressed) dragFrom = point.Position;
+        else return;
         Root.CapturePointer(e.Pointer);
     }
 
     void OnMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (dragFrom is not { } from) return;
         var at = e.GetCurrentPoint(Root).Position;
+        if (turnFrom is { } was)
+        {
+            double now = Bearing(at);
+            turned = ((turned + now - was) % 360 + 540) % 360 - 180;
+            turnFrom = now;
+            double square = Math.Round(turned / 90) * 90;
+            angle = Math.Abs(turned - square) < 2 ? square : Math.Round(turned, 1);
+            Apply();
+            return;
+        }
+        if (dragFrom is not { } from) return;
         (x0, y0, dragFrom) = (x0 + at.X - from.X, y0 + at.Y - from.Y, at);
         fitted = false;
         Apply();
@@ -320,8 +385,11 @@ public sealed partial class StageView : UserControl
 
     void OnReleased(object sender, PointerRoutedEventArgs e)
     {
-        dragFrom = null;
+        bool wasTurning = turnFrom is not null;
+        (dragFrom, turnFrom) = (null, null);
+        Guides.Visibility = Visibility.Collapsed;
         Root.ReleasePointerCaptures();
+        if (wasTurning) Rotated?.Invoke(angle);
     }
 
     void OnZoomClick(object sender, RoutedEventArgs e) => FitShown();

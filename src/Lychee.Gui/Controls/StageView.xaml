@@ -15,8 +15,13 @@
                     <CompositeTransform x:Name="Place" />
                 </Image.RenderTransform>
             </Image>
-            <Rectangle x:Name="Frame" StrokeThickness="1" Visibility="Collapsed" />
+            <Rectangle x:Name="Frame" StrokeThickness="1" Visibility="Collapsed">
+                <Rectangle.RenderTransform>
+                    <RotateTransform x:Name="FrameTurn" />
+                </Rectangle.RenderTransform>
+            </Rectangle>
         </Canvas>
+        <Canvas x:Name="Guides" IsHitTestVisible="False" Visibility="Collapsed" />
         <ProgressRing x:Name="Spinner" Width="40" Height="40" IsActive="False" AutomationProperties.Name="Working" />
         <Border x:Name="StatusBadge" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16,88,16,0" Padding="8,4" CornerRadius="4"
                 Visibility="Collapsed" Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}">

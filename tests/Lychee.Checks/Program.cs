@@ -53,6 +53,12 @@ for (int i = 0; i < cut.Width * cut.Height; i++) sum2 += cut.Pixels[4 * i + 3];
 Check(cut.Width < N && cut.Height < N, "transparent margins must be cropped");
 Check(Math.Abs((double)sx / n - (cut.Width - 1) / 2.0) < 1 && Math.Abs((double)sy / n - (cut.Height - 1) / 2.0) < 1, "disc stays centered");
 Check(sum1 == sum2, "no visible pixel is lost");
+var quarter = cut.Rotated(90);
+Check(cut.Width != cut.Height || Enumerable.Range(0, cut.Width * cut.Height).All(i => A(quarter, i % cut.Width, i / cut.Width) == A(cut, i / cut.Width, cut.Width - 1 - i % cut.Width)), "a quarter turn moves each pixel, clockwise");
+long sum3 = 0;
+var turned = cut.Rotated(30);
+for (int i = 0; i < turned.Width * turned.Height; i++) sum3 += turned.Pixels[4 * i + 3];
+Check(Math.Abs(sum3 - sum2) < sum2 * 0.002 && A(turned, (cut.Width - 1) / 2, (cut.Height - 1) / 2) == A(cut, (cut.Width - 1) / 2, (cut.Height - 1) / 2), "turning keeps the disc whole and centered");
 {
     const int PW = 900, PH = 1200, OX = 120, OY = 380;
     var page = new byte[PW * PH * 3];

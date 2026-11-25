@@ -17,6 +17,7 @@ public sealed partial class ScanView : UserControl
     string? blackPath, pairedBlack;
     readonly Task<Image>?[] results = new Task<Image>?[2];
     bool showAfter = true, opening = true, choosingBlack, closed, matting;
+    double angle;
     IEnumerable<Controls.StageView> Previews => Backdrops.Thumbnails.Prepend(Preview);
 
     public ScanView(MainWindow owner, string path, string? black = null)
@@ -25,6 +26,11 @@ public sealed partial class ScanView : UserControl
         Path = path;
         pairedBlack = black;
         InitializeComponent();
+        Preview.Rotated += a =>
+        {
+            angle = a;
+            foreach (var t in Backdrops.Thumbnails) t.Angle = a;
+        };
         SaveOverlay.Closed += () =>
         {
             SaveState = SaveState.None;
@@ -107,6 +113,12 @@ public sealed partial class ScanView : UserControl
         var job = results[p - 1] = Task.Run(() => Remover.RemoveBackground(s, b));
         _ = job.ContinueWith(_ => UpdateState(), TaskScheduler.FromCurrentSynchronizationContext());
         return job;
+    }
+
+    async Task<Image> Final(int p)
+    {
+        var (result, a) = (await Result(p), angle);
+        return await Task.Run(() => result.Rotated(a));
     }
 
     async Task Refresh()
@@ -228,7 +240,7 @@ public sealed partial class ScanView : UserControl
         CopyButton.IsEnabled = false;
         try
         {
-            var png = await (await Result(p)).EncodePngAsync();
+            var png = await (await Final(p)).EncodePngAsync();
             var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
             await stream.WriteAsync(png.AsBuffer());
             var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
@@ -277,7 +289,7 @@ public sealed partial class ScanView : UserControl
         try
         {
             SaveOverlay.Report(results[p - 1] is { IsCompleted: true } ? "Writing the PNG…" : "Removing the background…", 0);
-            var result = await Result(p);
+            var result = await Final(p);
             cancel.ThrowIfCancellationRequested();
             SaveOverlay.Report("Writing the PNG…", 0);
             await Task.Run(() => result.SavePngAsync(file.Path));
@@ -293,6 +305,7 @@ public sealed partial class ScanView : UserControl
             };
             facts.Add(("Resolution", Dpi(result)));
             facts.Add(("Matting", p == 2 ? System.IO.Path.GetFileName(blackPath) : "Off"));
+            if (angle != 0) facts.Add(("Rotation", $"{angle:0.#}°"));
             SaveOverlay.ShowDone(file.Path, [.. facts]);
             SaveState = SaveState.Saved;
         }
