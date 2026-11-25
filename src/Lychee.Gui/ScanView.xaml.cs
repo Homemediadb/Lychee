@@ -30,6 +30,7 @@ public sealed partial class ScanView : UserControl
         {
             angle = a;
             foreach (var t in Backdrops.Thumbnails) t.Angle = a;
+            if (showAfter && results[Pass - 1] is { IsCompletedSuccessfully: true } done) Describe(done.Result);
         };
         SaveOverlay.Closed += () =>
         {
@@ -258,9 +259,34 @@ public sealed partial class ScanView : UserControl
 
     void Describe(Image? image, string none = "Processing…")
     {
-        SizeText.Text = image is null ? none : $"{image.Width:N0} × {image.Height:N0} px";
-        DpiText.Text = image is null ? "" : $"{image.Width * (double)image.Height / 1e6:0.#} MP · {Dpi(image)}";
+        int v = ++described;
+        SizeText.Text = image is null ? none : $"{image.Width:N0} × {image.Height:N0} px · {image.Width * (double)image.Height / 1e6:0.#} MP";
+        DpiText.Text = image is null ? "" : Dpi(image);
         DpiText.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
+        if (image is not null) _ = AddFileSize(image, v);
+    }
+
+    int described;
+    (Image Result, double Angle, Task<long> Bytes)? encoded;
+
+    async Task AddFileSize(Image image, int v)
+    {
+        try
+        {
+            long bytes;
+            if (ReferenceEquals(image, scan)) bytes = new FileInfo(Path).Length;
+            else
+            {
+                if (encoded is not { } e || !ReferenceEquals(e.Result, image) || e.Angle != angle)
+                {
+                    var a = angle;
+                    encoded = e = (image, a, Task.Run(async () => (long)(await image.Rotated(a).EncodePngAsync()).Length));
+                }
+                bytes = await e.Bytes;
+            }
+            if (v == described) DpiText.Text = $"{Dpi(image)} · {FileSize(bytes)}";
+        }
+        catch (Exception) { }
     }
 
     internal static async Task CopyPngAsync(byte[] png)
