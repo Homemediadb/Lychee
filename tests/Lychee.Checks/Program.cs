@@ -59,6 +59,7 @@ long sum3 = 0;
 var turned = cut.Rotated(30);
 for (int i = 0; i < turned.Width * turned.Height; i++) sum3 += turned.Pixels[4 * i + 3];
 Check(Math.Abs(sum3 - sum2) < sum2 * 0.002 && A(turned, (cut.Width - 1) / 2, (cut.Height - 1) / 2) == A(cut, (cut.Width - 1) / 2, (cut.Height - 1) / 2), "turning keeps the disc whole and centered");
+Check(Upright.FindAsync(turned).GetAwaiter().GetResult() == 0, "a disc with no print to read isn't turned");
 {
     const int PW = 900, PH = 1200, OX = 120, OY = 380;
     var page = new byte[PW * PH * 3];
