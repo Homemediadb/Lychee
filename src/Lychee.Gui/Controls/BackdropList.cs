@@ -30,7 +30,7 @@ public sealed partial class BackdropList : UserControl
             var button = new Button
             {
                 Content = new StackPanel { Spacing = 4, Children = { ring, label } },
-                Width = 144,
+                Width = 148,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Padding = new Thickness(2, 2, 2, 4),
             };

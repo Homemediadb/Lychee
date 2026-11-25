@@ -33,7 +33,7 @@ public sealed partial class PreviewWindow : Window
         space.SizeChanged += Once;
         var body = new Grid
         {
-            ColumnDefinitions = { new(), new() { Width = new GridLength(176) } },
+            ColumnDefinitions = { new(), new() { Width = new GridLength(180) } },
             Children = { new Border { BorderBrush = divider, BorderThickness = new Thickness(0, 0, 1, 0), Child = space } },
         };
         var side = new ScrollViewer { Content = backdrops };
