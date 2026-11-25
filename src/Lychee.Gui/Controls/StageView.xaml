@@ -36,5 +36,11 @@
                 Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
             <TextBlock x:Name="ZoomText" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.LiveSetting="Polite" />
         </Button>
+        <Button x:Name="AngleBadge" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8" Padding="8,4" MinWidth="0" MinHeight="0"
+                CornerRadius="4" Visibility="Collapsed" Click="OnAngleClick" ToolTipService.ToolTip="Turn back straight"
+                AutomationProperties.Name="Rotation: turn back straight"
+                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <TextBlock x:Name="AngleText" FontFamily="Cascadia Mono, Consolas" FontSize="12" AutomationProperties.LiveSetting="Polite" />
+        </Button>
     </Grid>
 </UserControl>

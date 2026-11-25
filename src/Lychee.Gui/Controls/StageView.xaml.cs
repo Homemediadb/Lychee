@@ -128,8 +128,8 @@ public sealed partial class StageView : UserControl
         ProtectedCursor = null;
         Picture.Source = null;
         (full, small, fullBitmap, smallBitmap) = (null, null, null, null);
-        (Spinner.IsActive, Message.Text, Message.Visibility, ZoomBadge.Visibility, Frame.Visibility) =
-            (false, message, Visibility.Visible, Visibility.Collapsed, Visibility.Collapsed);
+        (Spinner.IsActive, Message.Text, Message.Visibility, ZoomBadge.Visibility, AngleBadge.Visibility, Frame.Visibility) =
+            (false, message, Visibility.Visible, Visibility.Collapsed, Visibility.Collapsed, Visibility.Collapsed);
     }
 
     static WriteableBitmap Bitmap(WriteableBitmap? bitmap, (byte[] Px, int W, int H) image)
@@ -181,7 +181,9 @@ public sealed partial class StageView : UserControl
         (Frame.Width, Frame.Height, Frame.StrokeThickness) = (f.W * zoom / DpiScale + 2 * px, f.H * zoom / DpiScale + 2 * px, px);
         (FrameTurn.Angle, FrameTurn.CenterX, FrameTurn.CenterY) = (angle, zoom * qx + px, zoom * qy + px);
         if (turnFrom is not null) DrawGuides();
-        ZoomText.Text = (zoom >= 0.1 ? $"{zoom * 100:0}%" : $"{zoom * 100:0.0}%") + (angle == 0 ? "" : $" · {angle:0.#}°");
+        ZoomText.Text = zoom >= 0.1 ? $"{zoom * 100:0}%" : $"{zoom * 100:0.0}%";
+        AngleText.Text = $"{angle:0.#}°";
+        AngleBadge.Visibility = Interactive && angle != 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     (double X, double Y) Pivot
@@ -393,12 +395,18 @@ public sealed partial class StageView : UserControl
 
     void OnZoomClick(object sender, RoutedEventArgs e) => FitShown();
 
+    void OnAngleClick(object sender, RoutedEventArgs e)
+    {
+        Angle = 0;
+        Rotated?.Invoke(0);
+    }
+
     void OnDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         if (!Interactive || e.OriginalSource is DependencyObject o && IsInBadge(o)) return;
         bool IsInBadge(DependencyObject d)
         {
-            for (; d is not null; d = VisualTreeHelper.GetParent(d)) if (ReferenceEquals(d, ZoomBadge)) return true;
+            for (; d is not null; d = VisualTreeHelper.GetParent(d)) if (ReferenceEquals(d, ZoomBadge) || ReferenceEquals(d, AngleBadge)) return true;
             return false;
         }
         if (fitted) ZoomAt(1 / zoom, e.GetPosition(Root));
