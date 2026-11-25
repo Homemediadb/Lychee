@@ -31,7 +31,6 @@ public sealed partial class BatchWindow : Window
         double scale = GetDpiForWindow(WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(760 * scale), (int)(680 * scale)));
         FolderBox.Text = Settings.Current.BatchFolder;
-        TwoPassBox.IsChecked = Settings.Current.BatchTwoPass;
         ClickCursor.Attach(Root);
         ApplyTheme();
         Settings.Changed += ApplyTheme;
@@ -57,12 +56,6 @@ public sealed partial class BatchWindow : Window
     }
 
     async void OnBrowse(object sender, RoutedEventArgs e) => await PickFolder();
-
-    void OnTwoPassClick(object sender, RoutedEventArgs e)
-    {
-        Settings.Current.BatchTwoPass = TwoPassBox.IsChecked == true;
-        Settings.Current.Save();
-    }
 
     async Task<bool> PickFolder()
     {
@@ -113,7 +106,7 @@ public sealed partial class BatchWindow : Window
             return;
         }
         Empty.Visibility = Visibility.Collapsed;
-        foreach (var row in TwoPassBox.IsChecked == true ? await Pair(scans) : scans.Select(p => new BatchRow(p)))
+        foreach (var row in await Pair(scans))
         {
             Items.Children.Add(row.Element);
             rows.Add(row);
@@ -137,12 +130,12 @@ public sealed partial class BatchWindow : Window
 
     async Task<List<BatchRow>> Pair(List<string> paths)
     {
+        if (paths.Count < 2) return [.. paths.Select(p => new BatchRow(p))];
         ProgressText.Text = $"Pairing {paths.Count} scans…";
         var (pairs, unmatched, failed) = await Task.Run(() => Pairing.MatchFilesAsync(paths));
         var rows = new List<BatchRow>();
         foreach (var (w, b) in pairs) rows.Add(new BatchRow(w.Path, b.Path));
-        foreach (var u in unmatched)
-            rows.Add(BatchRow.Failed(u.Path, "No sure match among the scans added with it: the same disc, unmoved, the same size, over the other backdrop", u.Preview));
+        foreach (var u in unmatched) rows.Add(new BatchRow(u.Path));
         foreach (var (p, error) in failed) rows.Add(BatchRow.Failed(p, error));
         return [.. rows.OrderBy(r => paths.IndexOf(r.Path))];
     }

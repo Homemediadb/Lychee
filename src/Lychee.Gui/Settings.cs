@@ -15,7 +15,6 @@ public sealed class Settings
     public bool HideMattingTips { get; set; }
     public string SaveSuffix { get; set; } = "_nobg";
     public string BatchFolder { get; set; } = "";
-    public bool BatchTwoPass { get; set; }
 
     public static Settings Current { get; } = Load();
 
