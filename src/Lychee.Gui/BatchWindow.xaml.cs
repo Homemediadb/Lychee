@@ -217,9 +217,9 @@ sealed class BatchRow
         Tip(copy, "Copy", "Copy the result to the clipboard, with transparency");
         Tip(stage, "Preview", "The result on a stage of its own, with the backdrops beside it");
         Tip(view, "Open", "Open the saved PNG in the default viewer");
+        foreach (var b in new[] { stage, view }) b.HorizontalAlignment = HorizontalAlignment.Stretch;
         buttons.Children.Add(copy);
-        buttons.Children.Add(stage);
-        buttons.Children.Add(view);
+        buttons.Children.Add(new StackPanel { Spacing = 4, Children = { stage, view } });
         var visual = ElementCompositionPreview.GetElementVisual(preview);
         var corners = visual.Compositor.CreateRoundedRectangleGeometry();
         (corners.Size, corners.CornerRadius) = (new((float)preview.Width, (float)preview.Height), new(4, 4));
