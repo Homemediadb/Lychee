@@ -93,7 +93,7 @@ public sealed partial class ScanView : UserControl
         }
         if (closed) return;
         SizeText.Text = $"{scan.Width:N0} × {scan.Height:N0} px";
-        DpiText.Text = Dpi(scan);
+        DpiText.Text = $"{scan.Width * (double)scan.Height / 1e6:0.#} MP · {Dpi(scan)}";
         await Refresh();
     }
 
