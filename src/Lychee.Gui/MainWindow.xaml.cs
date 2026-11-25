@@ -36,7 +36,7 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         double scale = GetDpiForWindow(WindowNative.GetWindowHandle(this)) / 96.0;
-        AppWindow.Resize(new SizeInt32((int)(1180 * scale), (int)(820 * scale)));
+        AppWindow.Resize(new SizeInt32((int)((820 - 49 - FileBar + SidePanel) * scale), (int)(820 * scale)));
         if (AppWindow.Presenter is OverlappedPresenter presenter)
             (presenter.PreferredMinimumWidth, presenter.PreferredMinimumHeight) = ((int)(640 * scale), (int)(480 * scale));
         squareLock = new SquareLock(WindowNative.GetWindowHandle(this), StageChrome, () => DispatcherQueue.TryEnqueue(SquareActive));
@@ -48,6 +48,7 @@ public sealed partial class MainWindow : Window
             SyncCaptionColors();
             FitCaptionGap();
             StyleBrand();
+            SquareEmpty();
             Settings.Current.FitBackdropTo(Root.ActualTheme);
             Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
             await ShowTipAsync(Root.XamlRoot, "For the best results", ScanAdvice, null,
@@ -154,6 +155,14 @@ public sealed partial class MainWindow : Window
     }
 
     bool squared;
+
+    // Copied from ScanView's layout; the first scan squares the stage exactly if they drift
+    const double FileBar = 53, SidePanel = 181;
+
+    void SquareEmpty()
+    {
+        if (!squared) SquareStage(new(Root.ActualWidth - SidePanel, Root.ActualHeight - Root.RowDefinitions[0].ActualHeight - FileBar));
+    }
     readonly SquareLock squareLock;
 
     Windows.Foundation.Size? StageChrome() =>
