@@ -372,8 +372,7 @@ public sealed partial class StageView : UserControl
             double now = Bearing(at);
             turned = ((turned + now - was) % 360 + 540) % 360 - 180;
             turnFrom = now;
-            double square = Math.Round(turned / 90) * 90;
-            angle = Math.Abs(turned - square) < 2 ? square : Math.Round(turned, 1);
+            angle = Math.Round(turned, 1);
             Apply();
             return;
         }
