@@ -299,6 +299,9 @@ sealed class BatchRow
             var result = await Task.Run(() => Remover.RemoveBackground(scan, blackScan));
             (scan, blackScan) = (null, null);
             closing.ThrowIfCancellationRequested();
+            file.Text = $"{details} · straightening…";
+            result = await Task.Run(async () => result.Rotated(await Upright.FindAsync(result)));
+            closing.ThrowIfCancellationRequested();
             var dst = OutputPath(folder);
             file.Text = "Saving…";
             await Task.Run(() => result.SavePngAsync(dst));
