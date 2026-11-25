@@ -286,16 +286,16 @@ sealed class BatchRow
             size.Text = "Opening…";
             Image? scan = await Task.Run(() => Image.LoadAsync(Path));
             Describe(scan, new FileInfo(Path).Length);
-            string fileSize = file.Text;
+            string details = file.Text;
             await preview.ShowAsync(scan);
             Image? blackScan = null;
             if (black is not null)
             {
-                file.Text = $"{fileSize} · opening the scan over black…";
+                file.Text = $"{details} · opening the scan over black…";
                 blackScan = await Task.Run(() => Image.LoadAsync(black));
                 if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
             }
-            file.Text = $"{fileSize} · removing the background…";
+            file.Text = $"{details} · removing the background…";
             var result = await Task.Run(() => Remover.RemoveBackground(scan, blackScan));
             (scan, blackScan) = (null, null);
             closing.ThrowIfCancellationRequested();
@@ -322,8 +322,8 @@ sealed class BatchRow
 
     void Describe(Image image, long bytes)
     {
-        size.Text = $"{image.Width:N0} × {image.Height:N0} px · {ScanView.Dpi(image)}";
-        file.Text = ScanView.FileSize(bytes);
+        size.Text = $"{image.Width:N0} × {image.Height:N0} px · {image.Width * (double)image.Height / 1e6:0.#} MP";
+        file.Text = $"{ScanView.Dpi(image)} · {ScanView.FileSize(bytes)}";
     }
 
     public void Cancelled()
