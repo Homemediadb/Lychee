@@ -18,6 +18,8 @@ public sealed partial class ScanView : UserControl
     readonly Task<Image>?[] results = new Task<Image>?[2];
     bool showAfter = true, opening = true, choosingBlack, closed, matting;
     double angle;
+    Task? straightening;
+    bool turnedByHand;
     IEnumerable<Controls.StageView> Previews => Backdrops.Thumbnails.Prepend(Preview);
 
     public ScanView(MainWindow owner, string path, string? black = null)
@@ -28,9 +30,8 @@ public sealed partial class ScanView : UserControl
         InitializeComponent();
         Preview.Rotated += a =>
         {
-            angle = a;
-            foreach (var t in Backdrops.Thumbnails) t.Angle = a;
-            if (showAfter && results[Pass - 1] is { IsCompletedSuccessfully: true } done) Describe(done.Result);
+            turnedByHand = true;
+            Turn(a);
         };
         SaveOverlay.Closed += () =>
         {
@@ -114,9 +115,26 @@ public sealed partial class ScanView : UserControl
         return job;
     }
 
+    void Turn(double a)
+    {
+        angle = a;
+        foreach (var v in Previews) v.Angle = a;
+        if (showAfter && results[Pass - 1] is { IsCompletedSuccessfully: true } done) Describe(done.Result);
+    }
+
+    async Task Straighten(Image result)
+    {
+        double a;
+        try { a = await Task.Run(() => Upright.FindAsync(result)); }
+        catch (Exception) { return; }
+        if (!closed && !turnedByHand && a != 0) Turn(a);
+    }
+
     async Task<Image> Final(int p)
     {
-        var (result, a) = (await Result(p), angle);
+        var result = await Result(p);
+        if (straightening is { } s) await s;
+        var a = angle;
         return await Task.Run(() => result.Rotated(a));
     }
 
@@ -151,6 +169,7 @@ public sealed partial class ScanView : UserControl
         SetStatus("");
         if (showAfter) Describe(result);
         Preview.FitTo(result);
+        straightening ??= Straighten(result);
         await Task.WhenAll((showAfter ? Previews : Backdrops.Thumbnails).Select(v => v.ShowAsync(result)));
     }
 
