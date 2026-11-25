@@ -268,6 +268,7 @@ public sealed partial class ScanView : UserControl
     {
         SizeText.Text = image is null ? none : $"{image.Width:N0} × {image.Height:N0} px";
         DpiText.Text = image is null ? "" : $"{image.Width * (double)image.Height / 1e6:0.#} MP · {Dpi(image)}";
+        DpiText.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
     }
 
     internal static string FileSize(long bytes) => bytes switch

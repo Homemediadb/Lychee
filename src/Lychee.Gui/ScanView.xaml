@@ -17,7 +17,7 @@
                 </StackPanel>
                 <StackPanel x:Name="InfoPanel" Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock x:Name="SizeText" Text="Processing…" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True" />
-                    <TextBlock x:Name="DpiText" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True"
+                    <TextBlock x:Name="DpiText" Visibility="Collapsed" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
