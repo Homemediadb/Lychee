@@ -97,6 +97,17 @@ public sealed partial class StageView : UserControl
         Fit();
     }
 
+    public string Status
+    {
+        set
+        {
+            (StatusText.Text, StatusBadge.Visibility) = (value, value.Length > 0 ? Visibility.Visible : Visibility.Collapsed);
+            if (value.Length > 0)
+                Microsoft.UI.Xaml.Automation.Peers.FrameworkElementAutomationPeer.FromElement(StatusText)?
+                    .RaiseAutomationEvent(Microsoft.UI.Xaml.Automation.Peers.AutomationEvents.LiveRegionChanged);
+        }
+    }
+
     public void ShowWorking() => (Spinner.IsActive, Picture.Opacity, Message.Visibility) = (true, 0.35, Visibility.Collapsed);
 
     public void Clear(string message)

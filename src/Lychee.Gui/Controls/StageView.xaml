@@ -18,6 +18,11 @@
             <Rectangle x:Name="Frame" StrokeThickness="1" Visibility="Collapsed" />
         </Canvas>
         <ProgressRing x:Name="Spinner" Width="40" Height="40" IsActive="False" AutomationProperties.Name="Working" />
+        <Border x:Name="StatusBadge" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16,88,16,0" Padding="8,4" CornerRadius="4"
+                Visibility="Collapsed" Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}">
+            <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" TextAlignment="Center"
+                       AutomationProperties.LiveSetting="Polite" />
+        </Border>
         <TextBlock x:Name="Message" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.6" TextWrapping="Wrap"
                    TextAlignment="Center" Visibility="Collapsed" />
         <Button x:Name="ZoomBadge" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Padding="8,4" MinWidth="0" MinHeight="0"

@@ -64,13 +64,7 @@ public sealed partial class ScanView : UserControl
         StateChanged?.Invoke();
     }
 
-    void SetStatus(string text)
-    {
-        StatusText.Text = text;
-        StatusText.Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        InfoPanel.Visibility = text.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
-        if (text.Length > 0) FrameworkElementAutomationPeer.FromElement(StatusText)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
-    }
+    void SetStatus(string text) => Preview.Status = text;
 
     public async Task OpenAsync()
     {
@@ -83,6 +77,7 @@ public sealed partial class ScanView : UserControl
         catch (Exception ex)
         {
             foreach (var v in Previews) v.Clear("Could not open this scan");
+            SizeText.Text = "";
             SetStatus(ex.Message);
             return;
         }
