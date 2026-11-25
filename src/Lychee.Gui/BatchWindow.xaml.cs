@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
@@ -209,6 +210,10 @@ sealed class BatchRow
             Children = { status, preview, text },
         };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { stage, view } };
+        var visual = ElementCompositionPreview.GetElementVisual(preview);
+        var corners = visual.Compositor.CreateRoundedRectangleGeometry();
+        (corners.Size, corners.CornerRadius) = (new((float)preview.Width, (float)preview.Height), new(4, 4));
+        visual.Clip = visual.Compositor.CreateGeometricClip(corners);
         row.Children.Add(buttons);
         Grid.SetColumn(preview, 1);
         Grid.SetColumn(text, 2);
