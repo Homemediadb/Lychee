@@ -14,15 +14,16 @@ public sealed partial class ScanView : UserControl
 {
     readonly MainWindow owner;
     Image? scan, black;
-    string? blackPath;
+    string? blackPath, pairedBlack;
     readonly Task<Image>?[] results = new Task<Image>?[2];
     bool showAfter = true, opening = true, choosingBlack, closed, matting;
     IEnumerable<Controls.StageView> Previews => Backdrops.Thumbnails.Prepend(Preview);
 
-    public ScanView(MainWindow owner, string path)
+    public ScanView(MainWindow owner, string path, string? black = null)
     {
         this.owner = owner;
         Path = path;
+        pairedBlack = black;
         InitializeComponent();
         SaveOverlay.Closed += () =>
         {
@@ -89,6 +90,7 @@ public sealed partial class ScanView : UserControl
         if (closed) return;
         SizeText.Text = $"{scan.Width:N0} × {scan.Height:N0} px";
         DpiText.Text = $"{scan.Width * (double)scan.Height / 1e6:0.#} MP · {Dpi(scan)}";
+        if (pairedBlack is { } b) await OpenBlack(b);
         await Refresh();
     }
 
@@ -177,9 +179,11 @@ public sealed partial class ScanView : UserControl
         "Next, choose that scan over black. The box beside Matte turns it on and off afterwards, without choosing " +
         "it again.";
 
-    async Task<bool> ChooseBlack()
+    async Task<bool> ChooseBlack() => await owner.PickScansAsync(multiple: false) is [var path] && await OpenBlack(path);
+
+    async Task<bool> OpenBlack(string path)
     {
-        if (await owner.PickScansAsync(multiple: false) is not [var path] || scan is null) return false;
+        if (scan is null) return false;
         choosingBlack = true;
         UpdateState();
         foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();

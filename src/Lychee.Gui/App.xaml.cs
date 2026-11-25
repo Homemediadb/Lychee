@@ -12,6 +12,6 @@ public partial class App : Application
     {
         window = new MainWindow();
         window.Activate();
-        window.Open(Environment.GetCommandLineArgs().Skip(1));
+        window.OpenPaired([.. Environment.GetCommandLineArgs().Skip(1)]);
     }
 }

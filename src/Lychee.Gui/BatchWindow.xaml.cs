@@ -138,24 +138,12 @@ public sealed partial class BatchWindow : Window
     async Task<List<BatchRow>> Pair(List<string> paths)
     {
         ProgressText.Text = $"Pairing {paths.Count} scans…";
-        var opened = await Task.Run(async () =>
-        {
-            var list = new List<(string Path, Pairing.Scan? Scan, string? Error)>();
-            foreach (var p in paths)
-                try
-                {
-                    var (preview, w, h) = await Image.LoadPreviewAsync(p, 512);
-                    list.Add((p, new Pairing.Scan(p, w, h, preview), null));
-                }
-                catch (Exception e) { list.Add((p, null, e.Message)); }
-            return list;
-        });
-        var (pairs, unmatched) = Pairing.Match([.. opened.Where(o => o.Scan is not null).Select(o => o.Scan!)]);
+        var (pairs, unmatched, failed) = await Task.Run(() => Pairing.MatchFilesAsync(paths));
         var rows = new List<BatchRow>();
         foreach (var (w, b) in pairs) rows.Add(new BatchRow(w.Path, b.Path));
         foreach (var u in unmatched)
             rows.Add(BatchRow.Failed(u.Path, "No sure match among the scans added with it: the same disc, unmoved, the same size, over the other backdrop", u.Preview));
-        foreach (var (p, _, error) in opened.Where(o => o.Error is not null)) rows.Add(BatchRow.Failed(p, error!));
+        foreach (var (p, error) in failed) rows.Add(BatchRow.Failed(p, error));
         return [.. rows.OrderBy(r => paths.IndexOf(r.Path))];
     }
 

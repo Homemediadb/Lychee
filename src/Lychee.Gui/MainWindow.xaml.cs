@@ -82,7 +82,23 @@ public sealed partial class MainWindow : Window
 
     public static bool IsScan(string path) => ScanTypes.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
-    public void Open(IEnumerable<string> paths)
+    public async void OpenPaired(IReadOnlyList<string> paths)
+    {
+        var scans = paths.Where(IsScan).Select(Path.GetFullPath).ToList();
+        if (scans.Count < 2)
+        {
+            Open(scans);
+            return;
+        }
+        List<(Pairing.Scan White, Pairing.Scan Black)> pairs;
+        try { pairs = (await Task.Run(() => Pairing.MatchFilesAsync(scans))).Pairs; }
+        catch { pairs = []; }
+        var blacks = pairs.ToDictionary(p => p.White.Path, p => p.Black.Path);
+        var paired = blacks.Values.ToHashSet();
+        Open(scans.Where(s => !paired.Contains(s)), blacks);
+    }
+
+    public void Open(IEnumerable<string> paths, IReadOnlyDictionary<string, string>? blacks = null)
     {
         foreach (var path in paths.Where(IsScan))
         {
@@ -90,7 +106,7 @@ public sealed partial class MainWindow : Window
             var existing = Tabs.TabItems.Cast<TabViewItem>().FirstOrDefault(t => string.Equals(((ScanView)t.Tag).Path, full, StringComparison.OrdinalIgnoreCase));
             if (existing is not null) { Tabs.SelectedItem = existing; continue; }
 
-            var view = new ScanView(this, full);
+            var view = new ScanView(this, full, blacks?.GetValueOrDefault(full));
             var spinner = new ProgressRing { Width = 14, Height = 14, MinWidth = 0, MinHeight = 0, IsActive = true, IsTabStop = false };
             var name = new TextBlock { Text = Path.GetFileName(full), TextTrimming = TextTrimming.CharacterEllipsis };
             Grid.SetColumn(name, 1);
@@ -175,7 +191,7 @@ public sealed partial class MainWindow : Window
         return await picker.PickSingleFileAsync() is { } file ? [file.Path] : [];
     }
 
-    async void PickFiles() => Open(await PickScansAsync(multiple: true));
+    async void PickFiles() => OpenPaired(await PickScansAsync(multiple: true));
 
     void OnAddTab(TabView sender, object args) => PickFiles();
 

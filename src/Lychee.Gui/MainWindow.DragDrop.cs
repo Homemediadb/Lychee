@@ -62,6 +62,6 @@ public sealed partial class MainWindow
         var paths = (await e.DataView.GetStorageItemsAsync()).OfType<StorageFile>().Select(f => f.Path).ToList();
         dragLeft?.Stop();
         DropZone.Hide();
-        Open(paths);
+        OpenPaired(paths);
     }
 }
