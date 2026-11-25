@@ -280,7 +280,7 @@ public static class Remover
         if (xb > xa)
             for (int y = Math.Max(y0, 0); y < Math.Min(y0 + bh, h); y++)
                 Array.Copy(px, 4 * (y * w + xa), box, 4 * ((y - y0) * bw + xa - x0), 4 * (xb - xa));
-        return new Image(bw, bh, 4, box, matted.Dpi) { OriginX = x0, OriginY = y0 };
+        return new Image(bw, bh, 4, box, matted.Dpi) { OriginX = x0, OriginY = y0, DiscRadius = p.R };
     }
 
     static double[] Terms(double x, double y) => [1, x, y, x * x, x * y, y * y];

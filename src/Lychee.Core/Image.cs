@@ -16,6 +16,8 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
     public int OriginX { get; init; }
     public int OriginY { get; init; }
 
+    public double DiscRadius { get; init; }
+
     public static async Task<Image> LoadAsync(string path, bool alpha = false)
     {
         using var file = File.OpenRead(path);
@@ -84,7 +86,7 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
                 (o[d], o[d + 1], o[d + 2], o[d + 3]) = ((byte)Math.Round(r / a), (byte)Math.Round(g / a), (byte)Math.Round(b / a), (byte)Math.Round(a));
             }
         });
-        return new Image(w, h, 4, o, Dpi) { OriginX = OriginX, OriginY = OriginY };
+        return new Image(w, h, 4, o, Dpi) { OriginX = OriginX, OriginY = OriginY, DiscRadius = DiscRadius };
     }
 
     public async Task SavePngAsync(string path)
