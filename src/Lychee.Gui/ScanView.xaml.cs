@@ -179,7 +179,7 @@ public sealed partial class ScanView : UserControl
         "compares the two pixel by pixel: what changes between white and black is how see-through each part is. The " +
         "hole and the clear plastic ring round it then come out with their real transparency and color, instead of " +
         "the clear plastic being opaque.\n\n" +
-        "Next, choose that scan over black. The box beside Matting turns it on and off afterwards, without choosing " +
+        "Next, choose that scan over black. The box beside Matte turns it on and off afterwards, without choosing " +
         "it again.";
 
     async Task<bool> ChooseBlack()

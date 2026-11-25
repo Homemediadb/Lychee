@@ -18,7 +18,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                     <CheckBox x:Name="MattingBox" MinWidth="0" Padding="0" Click="OnMattingBoxClick" AutomationProperties.Name="Use matting"
                               ToolTipService.ToolTip="Use the black scan: on, the hole and clear plastic are matted; off, the white scan alone" />
-                    <Button x:Name="MattingButton" Click="OnMattingClick" AutomationProperties.Name="Matting">
+                    <Button x:Name="MattingButton" Click="OnMattingClick" AutomationProperties.Name="Matte">
                         <ToolTipService.ToolTip>
                             <ToolTip>
                                 <TextBlock x:Name="MattingTip" TextWrapping="Wrap" MaxWidth="320" />
@@ -26,7 +26,7 @@
                         </ToolTipService.ToolTip>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <FontIcon Glyph="&#xE8B9;" FontSize="14" />
-                            <TextBlock Text="Matting…" />
+                            <TextBlock Text="Matte" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
