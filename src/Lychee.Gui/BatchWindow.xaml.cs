@@ -101,7 +101,7 @@ public sealed partial class BatchWindow : Window
             {
                 XamlRoot = Root.XamlRoot,
                 Title = "Choose an output folder first",
-                Content = "Batch Mode saves each result there. Choose one with Browse… at the top, then add the scans again.",
+                Content = "Batch Mode saves each result there. Choose one with Browse\u2026 at the top, then add the scans again.",
                 CloseButtonText = "OK",
                 RequestedTheme = Root.ActualTheme,
             }.ShowAsync();
@@ -133,7 +133,7 @@ public sealed partial class BatchWindow : Window
     async Task<List<BatchRow>> Pair(List<string> paths)
     {
         if (paths.Count < 2) return [.. paths.Select(p => new BatchRow(p))];
-        ProgressText.Text = $"Pairing {paths.Count} scans…";
+        ProgressText.Text = $"Pairing {paths.Count} scans\u2026";
         var (pairs, unmatched, failed) = await Task.Run(() => Pairing.MatchFilesAsync(paths));
         var rows = new List<BatchRow>();
         foreach (var (w, b) in pairs) rows.Add(new BatchRow(w.Path, b.Path));
@@ -158,7 +158,7 @@ public sealed partial class BatchWindow : Window
         if (failed > 0) parts.Add($"{failed} failed");
         if (cancelled > 0) parts.Add($"{cancelled} cancelled");
         if (left > 0) parts.Add($"{left} to go");
-        ProgressText.Text = string.Join(" · ", parts);
+        ProgressText.Text = string.Join(" \u00B7 ", parts);
     }
 
     [LibraryImport("user32.dll")] private static partial uint GetDpiForWindow(nint hwnd);
@@ -170,8 +170,8 @@ sealed class BatchRow
     readonly ProgressRing ring = new() { Width = 20, Height = 20, IsActive = true };
     readonly FontIcon outcome = new() { FontSize = 18, Visibility = Visibility.Collapsed };
     readonly Controls.StageView preview = new() { Interactive = false, MaxSide = 160, Backdrop = Backdrop.Checkerboard, Square = 6, Width = 72, Height = 72, IsHitTestVisible = false };
-    readonly TextBlock size = Caption("Waiting…"), file = Caption("");
-    readonly FontIcon copyIcon = Icon("");
+    readonly TextBlock size = Caption("Waiting\u2026"), file = Caption("");
+    readonly FontIcon copyIcon = Icon("\uE8C8");
     readonly Button copy, stage, view;
     readonly StackPanel buttons = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     string? output;
@@ -212,8 +212,8 @@ sealed class BatchRow
             Children = { status, preview, text },
         };
         copy = new Button { Content = copyIcon, Padding = new Thickness(9, 8, 9, 8) };
-        stage = new Button { Content = Labelled("", "Preview") };
-        view = new Button { Content = Labelled("", "Open") };
+        stage = new Button { Content = Labelled("\uE8A1", "Preview") };
+        view = new Button { Content = Labelled("\uE8A7", "Open") };
         Tip(copy, "Copy", "Copy the result to the clipboard, with transparency");
         Tip(stage, "Preview", "The result on a stage of its own, with the backdrops beside it");
         Tip(view, "Open", "Open the saved PNG in the default viewer");
@@ -235,14 +235,14 @@ sealed class BatchRow
             try
             {
                 await ScanView.CopyPngAsync(await File.ReadAllBytesAsync(output));
-                copyIcon.Glyph = "";
+                copyIcon.Glyph = "\uE73E";
             }
             catch
             {
-                copyIcon.Glyph = "";
+                copyIcon.Glyph = "\uE783";
             }
             await Task.Delay(1500);
-            copyIcon.Glyph = "";
+            copyIcon.Glyph = "\uE8C8";
             copy.IsEnabled = true;
         };
         stage.Click += (_, _) =>
@@ -283,7 +283,7 @@ sealed class BatchRow
     {
         try
         {
-            size.Text = "Opening…";
+            size.Text = "Opening\u2026";
             Image? scan = await Task.Run(() => Image.LoadAsync(Path));
             Describe(scan, new FileInfo(Path).Length);
             string details = file.Text;
@@ -291,23 +291,23 @@ sealed class BatchRow
             Image? blackScan = null;
             if (black is not null)
             {
-                file.Text = $"{details} · opening the scan over black…";
+                file.Text = $"{details} \u00B7 opening the scan over black\u2026";
                 blackScan = await Task.Run(() => Image.LoadAsync(black));
                 if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
             }
-            file.Text = $"{details} · removing the background…";
+            file.Text = $"{details} \u00B7 removing the background\u2026";
             var result = await Task.Run(() => Remover.RemoveBackground(scan, blackScan));
             (scan, blackScan) = (null, null);
             closing.ThrowIfCancellationRequested();
             if (Settings.Current.AutoRotation)
             {
-                file.Text = $"{details} · auto rotating…";
+                file.Text = $"{details} \u00B7 auto rotating\u2026";
                 var turned = result;
                 result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotate(turned)));
                 closing.ThrowIfCancellationRequested();
             }
             var dst = OutputPath(folder);
-            file.Text = "Saving…";
+            file.Text = "Saving\u2026";
             await Task.Run(() => result.SavePngAsync(dst));
             await preview.ShowAsync(result);
             Describe(result, new FileInfo(dst).Length);
@@ -322,15 +322,15 @@ sealed class BatchRow
         }
         catch (Exception e)
         {
-            if (size.Text == "Opening…") size.Visibility = Visibility.Collapsed;
+            if (size.Text == "Opening\u2026") size.Visibility = Visibility.Collapsed;
             Fail(e.Message);
         }
     }
 
     void Describe(Image image, long bytes)
     {
-        size.Text = $"{image.Width:N0} × {image.Height:N0} px · {image.Width * (double)image.Height / 1e6:0.#} MP";
-        file.Text = $"{ScanView.Dpi(image)} · {ScanView.FileSize(bytes)}";
+        size.Text = $"{image.Width:N0} \u00D7 {image.Height:N0} px \u00B7 {image.Width * (double)image.Height / 1e6:0.#} MP";
+        file.Text = $"{ScanView.Dpi(image)} \u00B7 {ScanView.FileSize(bytes)}";
     }
 
     public void Cancelled()

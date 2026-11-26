@@ -103,6 +103,25 @@ foreach (double? dpi in new double?[] { 1200, null })
         Check(Resolution.Read(read) is var got && (got is null ? dpi is null : Math.Abs(got.Value - dpi!.Value) < 0.1), $"resolution {dpi} round trip");
     File.Delete(file);
 }
+var root = AppContext.BaseDirectory;
+while (root is not null && !File.Exists(Path.Combine(root, "Lychee.sln"))) root = Path.GetDirectoryName(root);
+Check(root is not null, "the repository's source is found");
+foreach (var f in Directory.EnumerateFiles(Path.Combine(root!, "src"), "*.cs", SearchOption.AllDirectories))
+{
+    if (f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+    int lineNo = 0;
+    foreach (var line in File.ReadLines(f))
+    {
+        lineNo++;
+        if (line.TrimStart().StartsWith("//")) continue;
+        var literals = System.Text.RegularExpressions.Regex.Matches(line, @"""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)'");
+        int comment = line.Length;
+        for (int at = line.IndexOf("//"); at >= 0; at = line.IndexOf("//", at + 2))
+            if (!literals.Any(m => m.Index < at && at < m.Index + m.Length)) { comment = at; break; }
+        foreach (var m in literals.Where(m => m.Index < comment))
+            Check(m.Value.All(c => c < 128), $"a string literal that isn't ASCII, at {f}:{lineNo} (escape it as \\uXXXX)");
+    }
+}
 Console.WriteLine("ok");
 
 static void Check(bool ok, string what)

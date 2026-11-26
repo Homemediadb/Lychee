@@ -182,7 +182,7 @@ public sealed partial class StageView : UserControl
         (FrameTurn.Angle, FrameTurn.CenterX, FrameTurn.CenterY) = (angle, zoom * qx + px, zoom * qy + px);
         if (turnFrom is not null) DrawGuides();
         ZoomText.Text = zoom >= 0.1 ? $"{zoom * 100:0}%" : $"{zoom * 100:0.0}%";
-        AngleText.Text = $"{angle:0.#}°";
+        AngleText.Text = $"{angle:0.#}\u00B0";
         AngleBadge.Visibility = Interactive && angle != 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 

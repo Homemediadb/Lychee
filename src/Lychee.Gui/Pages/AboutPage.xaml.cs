@@ -18,7 +18,7 @@ public sealed partial class AboutPage : UserControl
         ("Ctrl + W", "Close tab"),
         ("Ctrl + Tab", "Next tab"),
         ("Ctrl + Shift + Tab", "Previous tab"),
-        ("Ctrl + 1–9", "Go to tab"),
+        ("Ctrl + 1\u20139", "Go to tab"),
     ];
 
     public AboutPage()

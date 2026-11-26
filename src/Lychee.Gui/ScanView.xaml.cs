@@ -78,7 +78,7 @@ public sealed partial class ScanView : UserControl
     public async Task OpenAsync()
     {
         foreach (var v in Previews) v.ShowWorking();
-        SetStatus("Opening…");
+        SetStatus("Opening\u2026");
         try
         {
             scan = await Task.Run(() => Image.LoadAsync(Path));
@@ -148,7 +148,7 @@ public sealed partial class ScanView : UserControl
         if (!job.IsCompleted)
         {
             foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
-            SetStatus(p == 1 ? "Removing the background…" : "Removing the background, and matting the hole and clear plastic…");
+            SetStatus(p == 1 ? "Removing the background\u2026" : "Removing the background, and matting the hole and clear plastic\u2026");
         }
         UpdateState();
         Image result;
@@ -220,14 +220,14 @@ public sealed partial class ScanView : UserControl
         choosingBlack = true;
         UpdateState();
         foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
-        SetStatus("Opening the black scan…");
+        SetStatus("Opening the black scan\u2026");
         try
         {
             var opened = await Task.Run(() => Image.LoadAsync(path));
             if (opened.Width != scan.Width || opened.Height != scan.Height)
             {
                 ShowCurrent();
-                SetStatus($"{System.IO.Path.GetFileName(path)} is {opened.Width:N0} × {opened.Height:N0} px, not {scan.Width:N0} × {scan.Height:N0} like this scan: scan both the same way, without moving the disc.");
+                SetStatus($"{System.IO.Path.GetFileName(path)} is {opened.Width:N0} \u00D7 {opened.Height:N0} px, not {scan.Width:N0} \u00D7 {scan.Height:N0} like this scan: scan both the same way, without moving the disc.");
                 return false;
             }
             (black, blackPath, results[1], matting) = (opened, path, null, true);
@@ -276,10 +276,10 @@ public sealed partial class ScanView : UserControl
         }
     }
 
-    void Describe(Image? image, string none = "Processing…")
+    void Describe(Image? image, string none = "Processing\u2026")
     {
         int v = ++described;
-        SizeText.Text = image is null ? none : $"{image.Width:N0} × {image.Height:N0} px · {image.Width * (double)image.Height / 1e6:0.#} MP";
+        SizeText.Text = image is null ? none : $"{image.Width:N0} \u00D7 {image.Height:N0} px \u00B7 {image.Width * (double)image.Height / 1e6:0.#} MP";
         DpiText.Text = image is null ? "" : Dpi(image);
         DpiText.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
         if (image is not null) _ = AddFileSize(image, v);
@@ -303,7 +303,7 @@ public sealed partial class ScanView : UserControl
                 }
                 bytes = await e.Bytes;
             }
-            if (v == described) DpiText.Text = $"{Dpi(image)} · {FileSize(bytes)}";
+            if (v == described) DpiText.Text = $"{Dpi(image)} \u00B7 {FileSize(bytes)}";
         }
         catch (Exception) { }
     }
@@ -352,10 +352,10 @@ public sealed partial class ScanView : UserControl
         var cancel = SaveOverlay.ShowProgress(file.Path);
         try
         {
-            SaveOverlay.Report(results[p - 1] is { IsCompleted: true } ? "Writing the PNG…" : "Removing the background…", 0);
+            SaveOverlay.Report(results[p - 1] is { IsCompleted: true } ? "Writing the PNG\u2026" : "Removing the background\u2026", 0);
             var result = await Final(p);
             cancel.ThrowIfCancellationRequested();
-            SaveOverlay.Report("Writing the PNG…", 0);
+            SaveOverlay.Report("Writing the PNG\u2026", 0);
             await Task.Run(() => result.SavePngAsync(file.Path));
             if (cancel.IsCancellationRequested)
             {
@@ -365,12 +365,12 @@ public sealed partial class ScanView : UserControl
             }
             var facts = new List<(string, string?)>
             {
-                ("Resolution", $"{result.Width:N0} × {result.Height:N0} px"),
+                ("Resolution", $"{result.Width:N0} \u00D7 {result.Height:N0} px"),
                 ("DPI", result.Dpi is double dpi ? $"{dpi:0.##}" : "Not recorded"),
                 ("File size", FileSize(new FileInfo(file.Path).Length)),
             };
             facts.Add(("Matting", p == 2 ? System.IO.Path.GetFileName(blackPath) : "Off"));
-            if (angle != 0) facts.Add(("Rotation", $"{angle:0.#}°"));
+            if (angle != 0) facts.Add(("Rotation", $"{angle:0.#}\u00B0"));
             SaveOverlay.ShowDone(file.Path, [.. facts]);
             SaveState = SaveState.Saved;
         }

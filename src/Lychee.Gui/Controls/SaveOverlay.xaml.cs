@@ -22,7 +22,7 @@ public sealed partial class SaveOverlay : UserControl
     {
         (TitleText.Text, FileText.Text) = (title, Path.GetFileName(file));
         (Bar.Value, Bar.IsIndeterminate) = (0, true);
-        (StageText.Text, PercentText.Text) = ("Starting…", "");
+        (StageText.Text, PercentText.Text) = ("Starting\u2026", "");
         (BadgeIcon.Glyph, Badge.Style) = ("\uE74E", (Style)Resources["SavingBadge"]);
         DetailScroll.Visibility = Facts.Visibility = Visibility.Collapsed;
         Badge.Visibility = ProgressPanel.Visibility = Visibility = Visibility.Visible;
@@ -110,7 +110,7 @@ public sealed partial class SaveOverlay : UserControl
     {
         if (saving is null) { Close(); return; }
         saving.Cancel();
-        (StageText.Text, PercentText.Text) = ("Cancelling…", "");
+        (StageText.Text, PercentText.Text) = ("Cancelling\u2026", "");
         NameX("Cancelling");
     }
 

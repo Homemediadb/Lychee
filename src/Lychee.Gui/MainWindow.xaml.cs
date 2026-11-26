@@ -263,13 +263,13 @@ public sealed partial class MainWindow : Window
 
     const string ScanAdvice =
         "Lychee works from the scan exactly as the scanner made it, so:\n\n" +
-        "• Scan raw and lossless: save as PNG (or BMP), not JPEG, at the resolution you want to keep.\n" +
-        "• Don't adjust the color levels, brightness, contrast or gamma, and turn off color correction, auto " +
+        "\u2022 Scan raw and lossless: save as PNG (or BMP), not JPEG, at the resolution you want to keep.\n" +
+        "\u2022 Don't adjust the color levels, brightness, contrast or gamma, and turn off color correction, auto " +
         "enhancement, sharpening and dust removal. Lychee reads the white point and the scanner's uneven lighting " +
         "from the background itself, and these change it.\n" +
-        "• Don't crop to the edge of the disc. Leave a good margin of background all round it, corners included: " +
+        "\u2022 Don't crop to the edge of the disc. Leave a good margin of background all round it, corners included: " +
         "Lychee measures the background there, and the disc's shadow needs the room to be kept.\n" +
-        "• Close the lid, or lay white paper over the disc, so it's scanned over plain white.";
+        "\u2022 Close the lid, or lay white paper over the disc, so it's scanned over plain white.";
 
     internal static async Task<bool> ShowTipAsync(XamlRoot root, string title, string text, string? action, Func<bool> hidden, Action<bool> hide)
     {

@@ -23,7 +23,7 @@ public sealed partial class BackdropList : UserControl
                 Width = 20, Height = 20, CornerRadius = new CornerRadius(10), Margin = new Thickness(6),
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
                 Background = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"],
-                Child = new FontIcon { Glyph = "", FontSize = 11, Foreground = (Brush)Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] },
+                Child = new FontIcon { Glyph = "\uE73E", FontSize = 11, Foreground = (Brush)Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] },
             };
             var ring = new Border { BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(4), Padding = new Thickness(2), Child = new Grid { Children = { thumbnail, check } } };
             var label = new TextBlock { Text = b.ToString(), HorizontalAlignment = HorizontalAlignment.Center, Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] };

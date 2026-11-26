@@ -24,7 +24,7 @@ public sealed partial class DropOverlay : UserControl
         Icon.Glyph = usable ? "\uE896" : "\uE7BA";
         TitleText.Text = usable ? $"Drop to open {scans} scan{(scans == 1 ? "" : "s")}" : "Only images can be opened";
         DetailText.Text = !usable ? "PNG, JPEG, WebP or BMP scans of a disc on a white background"
-            : other > 0 ? $"Each opens in its own tab · {other} other item{(other == 1 ? "" : "s")} will be skipped"
+            : other > 0 ? $"Each opens in its own tab \u00B7 {other} other item{(other == 1 ? "" : "s")} will be skipped"
             : "Each opens in its own tab";
         Frame.Stroke = (Brush)Application.Current.Resources[usable ? "AccentFillColorDefaultBrush" : "SystemFillColorCautionBrush"];
         if (IsShown) return;

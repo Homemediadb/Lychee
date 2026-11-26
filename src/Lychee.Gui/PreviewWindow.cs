@@ -79,11 +79,11 @@ public sealed partial class PreviewWindow : Window
             async Task Turn(Task before, double a)
             {
                 await before;
-                titleBar.Subtitle = "Saving…";
+                titleBar.Subtitle = "Saving\u2026";
                 try
                 {
                     await Task.Run(() => result.Rotated(a).SavePngAsync(path));
-                    titleBar.Subtitle = a == 0 ? "Saved" : $"Turned {a:0.#}°, saved";
+                    titleBar.Subtitle = a == 0 ? "Saved" : $"Turned {a:0.#}\u00B0, saved";
                 }
                 catch (Exception e)
                 {
