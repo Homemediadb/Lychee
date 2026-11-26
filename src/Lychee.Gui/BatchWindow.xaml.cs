@@ -405,7 +405,15 @@ sealed class DiscRow
         };
         view.Click += async (_, _) =>
         {
-            if (output is not null) await Windows.System.Launcher.LaunchFileAsync(await StorageFile.GetFileFromPathAsync(output));
+            if (output is null) return;
+            try
+            {
+                await Windows.System.Launcher.LaunchFileAsync(await StorageFile.GetFileFromPathAsync(output));
+            }
+            catch (Exception e) when (e is FileNotFoundException or UnauthorizedAccessException)
+            {
+                Fail($"{System.IO.Path.GetFileName(output)} is gone");
+            }
         };
         Element = new Border { BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], Padding = new Thickness(12, 8, 12, 8), Child = row };
     }
