@@ -65,40 +65,13 @@ public readonly record struct Ellipse(double Cx, double Cy, double R, double E, 
         var trial = new double[m];
         for (int iter = 0; iter < 200; iter++)
         {
-            for (int j = 0; j < n; j++)
-            {
-                var q = (double[])p.Clone();
-                double h = 1e-7 * Math.Max(1, Math.Abs(p[j]));
-                q[j] += h;
-                residuals(q, cols[j]);
-                for (int i = 0; i < m; i++) cols[j][i] = (cols[j][i] - r[i]) / h;
-            }
-            var jtj = new double[n, n];
-            var jtr = new double[n];
-            for (int a = 0; a < n; a++)
-            {
-                for (int b = a; b < n; b++)
-                {
-                    double s = 0;
-                    for (int i = 0; i < m; i++) s += cols[a][i] * cols[b][i];
-                    jtj[a, b] = jtj[b, a] = s;
-                }
-                double g = 0;
-                for (int i = 0; i < m; i++) g += cols[a][i] * r[i];
-                jtr[a] = g;
-            }
+            Jacobian(p, residuals, r, cols);
+            var (jtj, jtr) = NormalEquations(cols, r);
             double maxDiag = Enumerable.Range(0, n).Max(j => jtj[j, j]);
             bool improved = false;
             while (lambda < 1e12)
             {
-                var sys = new double[n, n + 1];
-                for (int a = 0; a < n; a++)
-                {
-                    for (int b = 0; b < n; b++) sys[a, b] = jtj[a, b];
-                    sys[a, a] += lambda * (jtj[a, a] + 1e-12 * maxDiag);
-                    sys[a, n] = -jtr[a];
-                }
-                var step = Gauss(sys, n);
+                var step = Gauss(Damped(jtj, jtr, lambda, maxDiag), n);
                 var next = p.Zip(step, (v, d) => v + d).ToArray();
                 residuals(next, trial);
                 double nextCost = trial.Sum(v => v * v);
@@ -116,6 +89,51 @@ public readonly record struct Ellipse(double Cx, double Cy, double R, double E, 
             if (!improved) break;
         }
         return p;
+    }
+
+    static void Jacobian(double[] p, Action<double[], double[]> residuals, double[] r, double[][] cols)
+    {
+        for (int j = 0; j < p.Length; j++)
+        {
+            var q = (double[])p.Clone();
+            double h = 1e-7 * Math.Max(1, Math.Abs(p[j]));
+            q[j] += h;
+            residuals(q, cols[j]);
+            for (int i = 0; i < r.Length; i++) cols[j][i] = (cols[j][i] - r[i]) / h;
+        }
+    }
+
+    static (double[,] JtJ, double[] JtR) NormalEquations(double[][] cols, double[] r)
+    {
+        int n = cols.Length;
+        var jtj = new double[n, n];
+        var jtr = new double[n];
+        for (int a = 0; a < n; a++)
+        {
+            for (int b = a; b < n; b++)
+            {
+                double s = 0;
+                for (int i = 0; i < r.Length; i++) s += cols[a][i] * cols[b][i];
+                jtj[a, b] = jtj[b, a] = s;
+            }
+            double g = 0;
+            for (int i = 0; i < r.Length; i++) g += cols[a][i] * r[i];
+            jtr[a] = g;
+        }
+        return (jtj, jtr);
+    }
+
+    static double[,] Damped(double[,] jtj, double[] jtr, double lambda, double maxDiag)
+    {
+        int n = jtr.Length;
+        var sys = new double[n, n + 1];
+        for (int a = 0; a < n; a++)
+        {
+            for (int b = 0; b < n; b++) sys[a, b] = jtj[a, b];
+            sys[a, a] += lambda * (jtj[a, a] + 1e-12 * maxDiag);
+            sys[a, n] = -jtr[a];
+        }
+        return sys;
     }
 
     static double[] Gauss(double[,] a, int n)

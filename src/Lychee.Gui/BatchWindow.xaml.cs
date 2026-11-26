@@ -257,51 +257,11 @@ sealed class BatchRow
         int next = 0;
         try
         {
-            first.Step("Opening\u2026");
-            Image? scan = await Task.Run(() => Image.LoadAsync(Path), closing);
-            first.Describe(scan, new FileInfo(Path).Length);
-            await first.ShowAsync(scan);
-            Image? blackScan = null;
-            if (black is not null)
-            {
-                first.Step("Opening the scan over black\u2026");
-                blackScan = await Task.Run(() => Image.LoadAsync(black), closing);
-                if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
-            }
-            var progress = new Progress<Remover.Step>(step =>
-            {
-                if (closing.IsCancellationRequested) return;
-                var row = step.Disc < 0 ? first : Discs(step.Discs)[step.Disc];
-                row.Step($"{step.Text}\u2026");
-                if (step.Picture is { } picture) _ = row.ShowAsync(picture);
-            });
-            var results = await Task.Run(() => Remover.RemoveBackgrounds(scan, blackScan, progress), closing);
-            (scan, blackScan) = (null, null);
+            var results = await RemoveAsync(first, closing);
             closing.ThrowIfCancellationRequested();
             Discs(results.Count);
             for (; next < results.Count; next++)
-            {
-                var (row, result) = (rows[next], results[next]);
-                try
-                {
-                    if (Settings.Current.AutoRotation)
-                    {
-                        row.Step("Auto rotating\u2026");
-                        _ = row.ShowAsync(result);
-                        var turned = result;
-                        result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotateAsync(turned)), closing);
-                        closing.ThrowIfCancellationRequested();
-                    }
-                    var dst = OutputPath(folder, results.Count > 1 ? next + 1 : null);
-                    row.Step("Saving\u2026");
-                    await Task.Run(() => result.SavePngAsync(dst), closing);
-                    await row.SavedAsync(result, dst);
-                }
-                catch (Exception e) when (e is not OperationCanceledException)
-                {
-                    row.Fail(e.Message);
-                }
-            }
+                await SaveDiscAsync(rows[next], results[next], OutputPath(folder, results.Count > 1 ? next + 1 : null), closing);
             State = rows.Any(r => r.State == BatchState.Failed) ? BatchState.Failed : BatchState.Done;
         }
         catch (OperationCanceledException)
@@ -312,6 +272,51 @@ sealed class BatchRow
         {
             first.Fail(e.Message);
             State = BatchState.Failed;
+        }
+    }
+
+    async Task<IReadOnlyList<Image>> RemoveAsync(DiscRow first, CancellationToken closing)
+    {
+        first.Step("Opening\u2026");
+        var scan = await Task.Run(() => Image.LoadAsync(Path), closing);
+        first.Describe(scan, new FileInfo(Path).Length);
+        await first.ShowAsync(scan);
+        Image? blackScan = null;
+        if (black is not null)
+        {
+            first.Step("Opening the scan over black\u2026");
+            blackScan = await Task.Run(() => Image.LoadAsync(black), closing);
+            if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
+        }
+        var progress = new Progress<Remover.Step>(step =>
+        {
+            if (closing.IsCancellationRequested) return;
+            var row = step.Disc < 0 ? first : Discs(step.Discs)[step.Disc];
+            row.Step($"{step.Text}\u2026");
+            if (step.Picture is { } picture) _ = row.ShowAsync(picture);
+        });
+        return await Task.Run(() => Remover.RemoveBackgrounds(scan, blackScan, progress), closing);
+    }
+
+    static async Task SaveDiscAsync(DiscRow row, Image result, string dst, CancellationToken closing)
+    {
+        try
+        {
+            if (Settings.Current.AutoRotation)
+            {
+                row.Step("Auto rotating\u2026");
+                _ = row.ShowAsync(result);
+                var turned = result;
+                result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotateAsync(turned)), closing);
+                closing.ThrowIfCancellationRequested();
+            }
+            row.Step("Saving\u2026");
+            await Task.Run(() => result.SavePngAsync(dst), closing);
+            await row.SavedAsync(result, dst);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            row.Fail(e.Message);
         }
     }
 
@@ -375,47 +380,58 @@ sealed class DiscRow
         foreach (var b in new[] { stage, view }) b.HorizontalAlignment = HorizontalAlignment.Stretch;
         buttons.Children.Add(copy);
         buttons.Children.Add(new StackPanel { Spacing = 4, Children = { stage, view } });
-        var visual = ElementCompositionPreview.GetElementVisual(preview);
-        var corners = visual.Compositor.CreateRoundedRectangleGeometry();
-        (corners.Size, corners.CornerRadius) = (new((float)preview.Width, (float)preview.Height), new(4, 4));
-        visual.Clip = visual.Compositor.CreateGeometricClip(corners);
+        RoundCorners(preview, 4);
         Grid.SetColumn(preview, 1);
         Grid.SetColumn(text, 2);
         Grid.SetColumn(right, 3);
-        copy.Click += async (_, _) =>
-        {
-            if (output is null) return;
-            copy.IsEnabled = false;
-            try
-            {
-                await ScanView.CopyPngAsync(await File.ReadAllBytesAsync(output));
-                copyIcon.Glyph = "\uE73E";
-            }
-            catch
-            {
-                copyIcon.Glyph = "\uE783";
-            }
-            await Task.Delay(1500);
-            copyIcon.Glyph = "\uE8C8";
-            copy.IsEnabled = true;
-        };
-        stage.Click += (_, _) =>
-        {
-            if (output is not null) new PreviewWindow(output).Activate();
-        };
-        view.Click += async (_, _) =>
-        {
-            if (output is null) return;
-            try
-            {
-                await Windows.System.Launcher.LaunchFileAsync(await StorageFile.GetFileFromPathAsync(output));
-            }
-            catch (Exception e) when (e is FileNotFoundException or UnauthorizedAccessException)
-            {
-                Fail($"{System.IO.Path.GetFileName(output)} is gone");
-            }
-        };
+        copy.Click += OnCopy;
+        stage.Click += OnPreview;
+        view.Click += OnOpen;
         Element = new Border { BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], Padding = new Thickness(12, 8, 12, 8), Child = row };
+    }
+
+    static void RoundCorners(FrameworkElement element, float radius)
+    {
+        var visual = ElementCompositionPreview.GetElementVisual(element);
+        var corners = visual.Compositor.CreateRoundedRectangleGeometry();
+        (corners.Size, corners.CornerRadius) = (new((float)element.Width, (float)element.Height), new(radius, radius));
+        visual.Clip = visual.Compositor.CreateGeometricClip(corners);
+    }
+
+    async void OnCopy(object sender, RoutedEventArgs e)
+    {
+        if (output is null) return;
+        copy.IsEnabled = false;
+        try
+        {
+            await ScanView.CopyPngAsync(await File.ReadAllBytesAsync(output));
+            copyIcon.Glyph = "\uE73E";
+        }
+        catch
+        {
+            copyIcon.Glyph = "\uE783";
+        }
+        await Task.Delay(1500);
+        copyIcon.Glyph = "\uE8C8";
+        copy.IsEnabled = true;
+    }
+
+    void OnPreview(object sender, RoutedEventArgs e)
+    {
+        if (output is not null) new PreviewWindow(output).Activate();
+    }
+
+    async void OnOpen(object sender, RoutedEventArgs e)
+    {
+        if (output is null) return;
+        try
+        {
+            await Windows.System.Launcher.LaunchFileAsync(await StorageFile.GetFileFromPathAsync(output));
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or UnauthorizedAccessException)
+        {
+            Fail($"{System.IO.Path.GetFileName(output)} is gone");
+        }
     }
 
     public string Label

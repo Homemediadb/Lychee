@@ -34,47 +34,61 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
-        double scale = GetDpiForWindow(WindowNative.GetWindowHandle(this)) / 96.0;
-        AppWindow.Resize(new SizeInt32((int)((820 - 49 - FileBar + SidePanel) * scale), (int)(820 * scale)));
-        if (AppWindow.Presenter is OverlappedPresenter presenter)
-            (presenter.PreferredMinimumWidth, presenter.PreferredMinimumHeight) = ((int)(640 * scale), (int)(480 * scale));
+        SizeWindow();
         squareLock = new SquareLock(WindowNative.GetWindowHandle(this), StageChrome, () => DispatcherQueue.TryEnqueue(SquareActive));
         AppWindow.Changed += (_, e) => { if (e.DidPresenterChange) DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SquareActive); };
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
         Root.ActualThemeChanged += (_, _) => { SyncCaptionColors(); HighlightTitleButtons(); Settings.Current.FitBackdropTo(Root.ActualTheme); };
-        Root.Loaded += async (_, _) =>
-        {
-            SyncCaptionColors();
-            FitCaptionGap();
-            StyleBrand();
-            SquareEmpty();
-            Settings.Current.FitBackdropTo(Root.ActualTheme);
-            Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
-            await ShowTipAsync(Root.XamlRoot, "For the best results", ScanAdvice, null,
-                () => Settings.Current.HideScanTips, hide => Settings.Current.HideScanTips = hide);
-        };
+        Root.Loaded += OnLoaded;
         InputNonClientPointerSource.GetForWindowId(AppWindow.Id).CaptionTapped += OnCaptionTapped;
         Root.SizeChanged += (_, _) => FitTabs();
         Welcome.OpenRequested += PickFiles;
         Welcome.BatchRequested += OpenBatch;
         AddShortcuts();
         settingsPage = new SettingsPage();
-        foreach (var p in new UIElement[] { aboutPage, settingsPage })
-        {
-            p.Visibility = Visibility.Collapsed;
-            PagesHost.Children.Add(p);
-        }
+        AddPages(aboutPage, settingsPage);
         ApplyTheme();
         Settings.Changed += ApplyTheme;
         // The items mark taps handled
         TitleButtons.AddHandler(UIElement.TappedEvent, new TappedEventHandler(OnTitleButtonTapped), handledEventsToo: true);
         ClickCursor.Attach(Root);
-        Closed += (_, _) =>
+        Closed += OnClosed;
+    }
+
+    void SizeWindow()
+    {
+        double scale = GetDpiForWindow(WindowNative.GetWindowHandle(this)) / 96.0;
+        AppWindow.Resize(new SizeInt32((int)((820 - 49 - FileBar + SidePanel) * scale), (int)(820 * scale)));
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+            (presenter.PreferredMinimumWidth, presenter.PreferredMinimumHeight) = ((int)(640 * scale), (int)(480 * scale));
+    }
+
+    async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        SyncCaptionColors();
+        FitCaptionGap();
+        StyleBrand();
+        SquareEmpty();
+        Settings.Current.FitBackdropTo(Root.ActualTheme);
+        Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
+        await ShowTipAsync(Root.XamlRoot, "For the best results", ScanAdvice, null,
+            () => Settings.Current.HideScanTips, hide => Settings.Current.HideScanTips = hide);
+    }
+
+    void AddPages(params UIElement[] pages)
+    {
+        foreach (var p in pages)
         {
-            foreach (var view in Views) view.Close();
-            batch?.Close();
-            squareLock.Dispose();
-        };
+            p.Visibility = Visibility.Collapsed;
+            PagesHost.Children.Add(p);
+        }
+    }
+
+    void OnClosed(object sender, WindowEventArgs args)
+    {
+        foreach (var view in Views) view.Close();
+        batch?.Close();
+        squareLock.Dispose();
     }
 
     ScanView? Active => (Tabs.SelectedItem as TabViewItem)?.Tag as ScanView;

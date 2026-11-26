@@ -27,7 +27,28 @@ public static class Cli
         Run without arguments (or not from a console) to open the app.
         """;
 
+    sealed record Options(List<string> Images, List<string> Blacks, string? OutDir, bool AutoRotation, string? Language, double MaxRotation);
+
     public static int Run(string[] args, TextWriter output, TextWriter error)
+    {
+        var (options, problem) = Parse(args);
+        if (options is null && problem is null)
+        {
+            output.WriteLine(Usage);
+            return 0;
+        }
+        if (options is null)
+        {
+            error.WriteLine($"Lychee: {problem}\n");
+            error.WriteLine(Usage);
+            return 2;
+        }
+        bool ok = true;
+        for (int i = 0; i < options.Images.Count; i++) ok &= Process(options, i, output, error);
+        return ok ? 0 : 1;
+    }
+
+    static (Options? Options, string? Problem) Parse(string[] args)
     {
         var (images, blacks) = (new List<string>(), new List<string>());
         string? outDir = null, language = null;
@@ -37,76 +58,72 @@ public static class Cli
         var queue = new Queue<string>(args);
         while (queue.TryDequeue(out var arg))
         {
+            string? problem = null;
             switch (arg)
             {
                 case "-h" or "--help" or "/?":
-                    output.WriteLine(Usage);
-                    return 0;
+                    return (null, null);
                 case "-b" or "--black":
                     into = blacks;
-                    break;
+                    continue;
                 case "-o" or "--outdir":
-                    if (!queue.TryDequeue(out outDir)) return Fail("-o needs a folder");
-                    into = images;
+                    if (!queue.TryDequeue(out outDir)) problem = "-o needs a folder";
                     break;
                 case "--no-auto-rotation":
                     autoRotation = false;
-                    into = images;
                     break;
                 case "--ocr-language":
-                    if (!queue.TryDequeue(out var tag)) return Fail("--ocr-language needs a language tag");
-                    var tags = AutoRotation.Languages.Select(l => l.Tag).ToList();
-                    language = tags.Find(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase));
-                    if (language is null) return Fail($"no OCR language {tag} is installed (installed: {(tags.Count > 0 ? string.Join(", ", tags) : "none")})");
-                    into = images;
+                    problem = queue.TryDequeue(out var tag) ? Installed(tag, out language) : "--ocr-language needs a language tag";
                     break;
                 case "--max-rotation":
                     if (!queue.TryDequeue(out var degrees) || !double.TryParse(degrees, System.Globalization.CultureInfo.InvariantCulture, out maxRotation) || maxRotation is < 0 or > 180)
-                        return Fail("--max-rotation needs degrees from 0 to 180");
-                    into = images;
+                        problem = "--max-rotation needs degrees from 0 to 180";
                     break;
                 case var a when a.StartsWith('-') && a.Length > 1:
-                    return Fail($"unknown option {a}");
+                    problem = $"unknown option {a}";
+                    break;
                 default:
                     into.Add(arg);
-                    break;
+                    continue;
             }
+            if (problem is not null) return (null, problem);
+            into = images;
         }
-        if (images.Count == 0) return Fail("no images given");
-        if (blacks.Count > 0 && blacks.Count != images.Count) return Fail("give one --black scan per image");
+        if (images.Count == 0) return (null, "no images given");
+        if (blacks.Count > 0 && blacks.Count != images.Count) return (null, "give one --black scan per image");
+        return (new(images, blacks, outDir, autoRotation, language, maxRotation), null);
+    }
 
-        bool ok = true;
-        for (int i = 0; i < images.Count; i++)
+    static string? Installed(string tag, out string? language)
+    {
+        var tags = AutoRotation.Languages.Select(l => l.Tag).ToList();
+        language = tags.Find(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase));
+        return language is null ? $"no OCR language {tag} is installed (installed: {(tags.Count > 0 ? string.Join(", ", tags) : "none")})" : null;
+    }
+
+    static bool Process(Options options, int i, TextWriter output, TextWriter error)
+    {
+        var f = options.Images[i];
+        try
         {
-            var f = images[i];
-            try
+            var scan = Image.LoadAsync(f).GetAwaiter().GetResult();
+            var black = options.Blacks.Count > 0 ? Image.LoadAsync(options.Blacks[i]).GetAwaiter().GetResult() : null;
+            var results = Remover.RemoveBackgrounds(scan, black);
+            for (int d = 0; d < results.Count; d++)
             {
-                var scan = Image.LoadAsync(f).GetAwaiter().GetResult();
-                var black = blacks.Count > 0 ? Image.LoadAsync(blacks[i]).GetAwaiter().GetResult() : null;
-                var results = Remover.RemoveBackgrounds(scan, black);
-                for (int d = 0; d < results.Count; d++)
-                {
-                    var result = results[d];
-                    var dst = OutputPath(f, outDir, disc: results.Count > 1 ? d + 1 : null);
-                    if (autoRotation) result = result.Rotated(AutoRotation.FindAsync(result, language, maxRotation).GetAwaiter().GetResult());
-                    result.SavePngAsync(dst).GetAwaiter().GetResult();
-                    output.WriteLine($"{f} -> {dst}");
-                }
+                var result = results[d];
+                var dst = OutputPath(f, options.OutDir, disc: results.Count > 1 ? d + 1 : null);
+                if (options.AutoRotation) result = result.Rotated(AutoRotation.FindAsync(result, options.Language, options.MaxRotation).GetAwaiter().GetResult());
+                result.SavePngAsync(dst).GetAwaiter().GetResult();
+                output.WriteLine($"{f} -> {dst}");
             }
-            catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException
-                                          or NotSupportedException or System.Runtime.InteropServices.COMException)
-            {
-                error.WriteLine($"{f}: skipped, {e.Message}");
-                ok = false;
-            }
+            return true;
         }
-        return ok ? 0 : 1;
-
-        int Fail(string message)
+        catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException
+                                      or NotSupportedException or System.Runtime.InteropServices.COMException)
         {
-            error.WriteLine($"Lychee: {message}\n");
-            error.WriteLine(Usage);
-            return 2;
+            error.WriteLine($"{f}: skipped, {e.Message}");
+            return false;
         }
     }
 

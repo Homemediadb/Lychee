@@ -194,12 +194,7 @@ public sealed partial class ScanView : UserControl
         if (!showAfter) _ = Preview.ShowAsync(opened);
         var job = ResultsAsync(p);
         Describe(!showAfter ? opened : job is { IsCompletedSuccessfully: true, Result: var ready } ? ready[d] : null);
-        if (!job.IsCompleted)
-        {
-            foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
-            Preview.Busy = true;
-            SetStatus("Starting\u2026");
-        }
+        if (!job.IsCompleted) ShowWorking();
         UpdateState();
         Image result;
         try
@@ -211,14 +206,30 @@ public sealed partial class ScanView : UserControl
         }
         catch (Exception ex)
         {
-            if (Pass != p || closed) return;
-            Preview.Busy = false;
-            foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.Clear("Could not remove the background");
-            if (showAfter) Describe(null, "");
-            SetStatus(ex.Message);
-            UpdateState();
+            if (Pass == p && !closed) ShowFailure(ex.Message);
             return;
         }
+        await ShowResultAsync(result, p, d, refit);
+    }
+
+    void ShowWorking()
+    {
+        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
+        Preview.Busy = true;
+        SetStatus("Starting\u2026");
+    }
+
+    void ShowFailure(string message)
+    {
+        Preview.Busy = false;
+        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.Clear("Could not remove the background");
+        if (showAfter) Describe(null, "");
+        SetStatus(message);
+        UpdateState();
+    }
+
+    async Task ShowResultAsync(Image result, int p, int d, bool refit)
+    {
         SetStatus("");
         if (showAfter) Describe(result);
         Preview.FitTo(result, refit);
