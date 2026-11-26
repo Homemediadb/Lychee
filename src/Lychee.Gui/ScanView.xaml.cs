@@ -18,7 +18,7 @@ public sealed partial class ScanView : UserControl
     readonly Task<Image>?[] results = new Task<Image>?[2];
     bool showAfter = true, opening = true, choosingBlack, closed, matting;
     double angle;
-    Task? straightening;
+    Task? autoRotating;
     bool turnedByHand;
     IEnumerable<Controls.StageView> Previews => Backdrops.Thumbnails.Prepend(Preview);
 
@@ -122,10 +122,10 @@ public sealed partial class ScanView : UserControl
         if (showAfter && results[Pass - 1] is { IsCompletedSuccessfully: true } done) Describe(done.Result);
     }
 
-    async Task Straighten(Image result)
+    async Task AutoRotate(Image result)
     {
         double a;
-        try { a = await Task.Run(() => Upright.FindAsync(result)); }
+        try { a = await Task.Run(() => AutoRotation.FindAsync(result)); }
         catch (Exception) { return; }
         if (!closed && !turnedByHand && a != 0) Turn(a);
     }
@@ -133,7 +133,7 @@ public sealed partial class ScanView : UserControl
     async Task<Image> Final(int p)
     {
         var result = await Result(p);
-        if (straightening is { } s) await s;
+        if (autoRotating is { } s) await s;
         var a = angle;
         return await Task.Run(() => result.Rotated(a));
     }
@@ -169,7 +169,7 @@ public sealed partial class ScanView : UserControl
         SetStatus("");
         if (showAfter) Describe(result);
         Preview.FitTo(result);
-        straightening ??= Straighten(result);
+        autoRotating ??= AutoRotate(result);
         await Task.WhenAll((showAfter ? Previews : Backdrops.Thumbnails).Select(v => v.ShowAsync(result)));
     }
 

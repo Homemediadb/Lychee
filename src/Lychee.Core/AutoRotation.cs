@@ -4,11 +4,15 @@ using Windows.Media.Ocr;
 
 namespace Lychee;
 
-public static class Upright
+public static class AutoRotation
 {
+    // Read within this share of the radius: past it, rim text curves at every angle
     const double Rim = 0.86;
+    // Px the disc is read at, at most, so small print stays legible
     const double Radius = 1200;
+    // Degrees votes agree within: any words, then line slopes
     const double Coarse = 12, Fine = 3;
+    // Letters needed behind a turn, and behind its line-slope refinement
     const double MinWeight = 20, MinFine = 12;
 
     public static async Task<double> FindAsync(Image result)
@@ -77,6 +81,7 @@ public static class Upright
                 double dx = x - m, dy = y - m;
                 if (dx * dx + dy * dy > r * r) { o[d] = o[d + 1] = o[d + 2] = 255; continue; }
                 double rr = 0, gg = 0, bb = 0;
+                // 2x2 samples per pixel, so shrinking doesn't alias the small print
                 for (int k = 0; k < 4; k++)
                 {
                     double ux = (dx + ((k & 1) - 0.5) * 0.5) / scale, uy = (dy + ((k >> 1) - 0.5) * 0.5) / scale;
