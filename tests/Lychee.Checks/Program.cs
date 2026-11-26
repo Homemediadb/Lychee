@@ -77,6 +77,18 @@ Check(AutoRotation.FindAsync(turned).GetAwaiter().GetResult() == 0, "a disc with
     var (_, onPage) = Remover.Matte(new Image(PW, PH, 3, page));
     Check(Math.Abs(onPage.Cx - (OX + 300)) < 3 && Math.Abs(onPage.Cy - (OY + 300)) < 3 && Math.Abs(onPage.R - 248) < 4, $"the disc on a page is found, not the page's edge ({onPage})");
 }
+{
+    const int PW = 760, PH = 1300;
+    var page = new byte[PW * PH * 3];
+    Array.Fill(page, (byte)255);
+    foreach (var (ox, oy) in new[] { (140, 680), (20, 20) })
+        for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+                for (int c = 0; c < 3; c++) page[3 * ((y + oy) * PW + x + ox) + c] = src[3 * (y * N + x) + c];
+    var both = Remover.RemoveBackgrounds(new Image(PW, PH, 3, page));
+    Check(both.Count == 2 && both[0].OriginY < both[1].OriginY, $"two discs on a page are both found, top one first ({both.Count})");
+    Check(both.All(d => Math.Abs(d.Width - cut.Width) <= 4 && Math.Abs(d.DiscRadius - outer.R) < 4), "each of two discs is cut on its own, the size one alone is");
+}
 
 byte[] Other(byte r, byte g, byte b)
 {
@@ -103,6 +115,7 @@ foreach (double? dpi in new double?[] { 1200, null })
         Check(Resolution.Read(read) is var got && (got is null ? dpi is null : Math.Abs(got.Value - dpi!.Value) < 0.1), $"resolution {dpi} round trip");
     File.Delete(file);
 }
+
 var root = AppContext.BaseDirectory;
 while (root is not null && !File.Exists(Path.Combine(root, "Lychee.sln"))) root = Path.GetDirectoryName(root);
 Check(root is not null, "the repository's source is found");

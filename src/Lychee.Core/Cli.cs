@@ -8,6 +8,7 @@ public static class Cli
 
         Removes the white scanner background from optical-disc scans, saving IMAGE_nobg.png
         next to each scan (or in OUTDIR), turned so its print reads level (Auto Rotation).
+        A scan with more than one disc saves each: IMAGE_disc1_nobg.png, IMAGE_disc2_nobg.png...
 
           1-pass (IMAGE alone): the hole is transparent, the disc and its clear plastic opaque;
                                 the shadow is kept as translucent shading.
@@ -82,11 +83,15 @@ public static class Cli
             {
                 var scan = Image.LoadAsync(f).GetAwaiter().GetResult();
                 var black = blacks.Count > 0 ? Image.LoadAsync(blacks[i]).GetAwaiter().GetResult() : null;
-                var dst = OutputPath(f, outDir);
-                var result = Remover.RemoveBackground(scan, black);
-                if (autoRotation) result = result.Rotated(AutoRotation.FindAsync(result, language, maxRotation).GetAwaiter().GetResult());
-                result.SavePngAsync(dst).GetAwaiter().GetResult();
-                output.WriteLine($"{f} -> {dst}");
+                var results = Remover.RemoveBackgrounds(scan, black);
+                for (int d = 0; d < results.Count; d++)
+                {
+                    var result = results[d];
+                    var dst = OutputPath(f, outDir, disc: results.Count > 1 ? d + 1 : null);
+                    if (autoRotation) result = result.Rotated(AutoRotation.FindAsync(result, language, maxRotation).GetAwaiter().GetResult());
+                    result.SavePngAsync(dst).GetAwaiter().GetResult();
+                    output.WriteLine($"{f} -> {dst}");
+                }
             }
             catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException
                                           or NotSupportedException or System.Runtime.InteropServices.COMException)
@@ -105,6 +110,9 @@ public static class Cli
         }
     }
 
-    public static string OutputPath(string scan, string? outDir, string suffix = "_nobg") =>
-        Path.Combine(outDir ?? Path.GetDirectoryName(Path.GetFullPath(scan))!, Path.GetFileNameWithoutExtension(scan) + suffix + ".png");
+    public static string OutputPath(string scan, string? outDir, string suffix = "_nobg", int? disc = null) =>
+        Path.Combine(outDir ?? Path.GetDirectoryName(Path.GetFullPath(scan))!, Name(scan, suffix, disc) + ".png");
+
+    public static string Name(string scan, string suffix, int? disc = null) =>
+        Path.GetFileNameWithoutExtension(scan) + (disc is int n ? $"_disc{n}" : "") + suffix;
 }

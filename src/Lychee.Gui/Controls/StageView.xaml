@@ -20,6 +20,11 @@
                     <RotateTransform x:Name="FrameTurn" />
                 </Rectangle.RenderTransform>
             </Rectangle>
+            <Rectangle x:Name="HighlightFrame" StrokeThickness="1" Visibility="Collapsed" Stroke="#A0000000">
+                <Rectangle.RenderTransform>
+                    <RotateTransform x:Name="HighlightTurn" />
+                </Rectangle.RenderTransform>
+            </Rectangle>
         </Canvas>
         <Canvas x:Name="Guides" IsHitTestVisible="False" Visibility="Collapsed" />
         <ProgressRing x:Name="Spinner" Width="40" Height="40" IsActive="False" AutomationProperties.Name="Working" />

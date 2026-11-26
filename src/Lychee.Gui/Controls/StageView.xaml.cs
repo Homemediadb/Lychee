@@ -61,6 +61,13 @@ public sealed partial class StageView : UserControl
         set { angle = value; Apply(); }
     }
 
+    public bool Highlight
+    {
+        get => highlight;
+        set { highlight = value; Apply(); }
+    }
+    bool highlight;
+
     public event Action<double>? Rotated;
 
     double DpiScale => XamlRoot?.RasterizationScale ?? 1;
@@ -93,9 +100,10 @@ public sealed partial class StageView : UserControl
         else Apply();
     }
 
-    public void FitTo(Image result)
+    public void FitTo(Image result, bool refit = false)
     {
         reference = (result.OriginX, result.OriginY, result.Width, result.Height);
+        if (refit) (chosenFit, fitted) = (null, true);
         if (fitted) Fit();
     }
 
@@ -128,8 +136,8 @@ public sealed partial class StageView : UserControl
         ProtectedCursor = null;
         Picture.Source = null;
         (full, small, fullBitmap, smallBitmap) = (null, null, null, null);
-        (Spinner.IsActive, Message.Text, Message.Visibility, ZoomBadge.Visibility, AngleBadge.Visibility, Frame.Visibility) =
-            (false, message, Visibility.Visible, Visibility.Collapsed, Visibility.Collapsed, Visibility.Collapsed);
+        (Spinner.IsActive, Message.Text, Message.Visibility, ZoomBadge.Visibility, AngleBadge.Visibility, Frame.Visibility, HighlightFrame.Visibility) =
+            (false, message, Visibility.Visible, Visibility.Collapsed, Visibility.Collapsed, Visibility.Collapsed, Visibility.Collapsed);
     }
 
     static WriteableBitmap Bitmap(WriteableBitmap? bitmap, (byte[] Px, int W, int H) image)
@@ -180,6 +188,17 @@ public sealed partial class StageView : UserControl
         Canvas.SetTop(Frame, y0 - px);
         (Frame.Width, Frame.Height, Frame.StrokeThickness) = (f.W * zoom / DpiScale + 2 * px, f.H * zoom / DpiScale + 2 * px, px);
         (FrameTurn.Angle, FrameTurn.CenterX, FrameTurn.CenterY) = (angle, zoom * qx + px, zoom * qy + px);
+        if (Interactive && highlight && reference is { } r && (originX, originY, shownW, shownH) != r)
+        {
+            double k = zoom * f.W / shownW / DpiScale;
+            double hx = x0 + (r.X - originX) * k, hy = y0 + (r.Y - originY) * k;
+            Canvas.SetLeft(HighlightFrame, hx - px);
+            Canvas.SetTop(HighlightFrame, hy - px);
+            (HighlightFrame.Width, HighlightFrame.Height, HighlightFrame.StrokeThickness) = (r.W * k + 2 * px, r.H * k + 2 * px, px);
+            (HighlightTurn.Angle, HighlightTurn.CenterX, HighlightTurn.CenterY) = (angle, x0 + zoom * qx - hx + px, y0 + zoom * qy - hy + px);
+            HighlightFrame.Visibility = Visibility.Visible;
+        }
+        else HighlightFrame.Visibility = Visibility.Collapsed;
         if (turnFrom is not null) DrawGuides();
         ZoomText.Text = zoom >= 0.1 ? $"{zoom * 100:0}%" : $"{zoom * 100:0.0}%";
         AngleText.Text = $"{angle:0.#}\u00B0";

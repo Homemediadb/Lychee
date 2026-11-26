@@ -167,10 +167,133 @@ public sealed partial class BatchWindow : Window
 sealed class BatchRow
 {
     readonly string? black;
+    readonly StackPanel discs = new();
+    readonly List<DiscRow> rows = [];
+
+    public StackPanel Element { get; }
+
+    public BatchState State { get; private set; }
+
+    public string Path { get; }
+
+    public static BatchRow Failed(string path, string message)
+    {
+        var row = new BatchRow(path);
+        row.rows[0].Fail(message);
+        row.State = BatchState.Failed;
+        return row;
+    }
+
+    public BatchRow(string path, string? black = null)
+    {
+        (Path, this.black) = (path, black);
+        var name = new TextBlock { Text = black is null ? System.IO.Path.GetFileName(path) : $"{System.IO.Path.GetFileName(path)} + {System.IO.Path.GetFileName(black)}", TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(2, 0, 0, 0) };
+        ToolTipService.SetToolTip(name, black is null ? path : $"{path}\n{black} (over black)");
+        var first = Add();
+        first.Step("Waiting\u2026");
+        Element = new StackPanel
+        {
+            Spacing = 6,
+            Children = { name, new Border { Style = (Style)Application.Current.Resources["Card"], Padding = new Thickness(0), Child = discs } },
+        };
+    }
+
+    DiscRow Add()
+    {
+        var row = new DiscRow();
+        if (rows.Count > 0) row.Element.BorderThickness = new Thickness(0, 1, 0, 0);
+        rows.Add(row);
+        discs.Children.Add(row.Element);
+        return row;
+    }
+
+    public async Task ProcessAsync(string folder, CancellationToken closing)
+    {
+        var first = rows[0];
+        int next = 0;
+        try
+        {
+            first.Step("Opening\u2026");
+            Image? scan = await Task.Run(() => Image.LoadAsync(Path));
+            first.Describe(scan, new FileInfo(Path).Length);
+            await first.ShowAsync(scan);
+            Image? blackScan = null;
+            if (black is not null)
+            {
+                first.Step("Opening the scan over black\u2026");
+                blackScan = await Task.Run(() => Image.LoadAsync(black));
+                if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
+            }
+            first.Step("Removing the background\u2026");
+            var results = await Task.Run(() => Remover.RemoveBackgrounds(scan, blackScan));
+            (scan, blackScan) = (null, null);
+            closing.ThrowIfCancellationRequested();
+            Discs(results.Count);
+            for (; next < results.Count; next++)
+            {
+                var (row, result) = (rows[next], results[next]);
+                try
+                {
+                    if (Settings.Current.AutoRotation)
+                    {
+                        row.Step("Auto rotating\u2026");
+                        _ = row.ShowAsync(result);
+                        var turned = result;
+                        result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotate(turned)));
+                        closing.ThrowIfCancellationRequested();
+                    }
+                    var dst = OutputPath(folder, results.Count > 1 ? next + 1 : null);
+                    row.Step("Saving\u2026");
+                    await Task.Run(() => result.SavePngAsync(dst));
+                    await row.SavedAsync(result, dst);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    row.Fail(e.Message);
+                }
+            }
+            State = rows.Any(r => r.State == BatchState.Failed) ? BatchState.Failed : BatchState.Done;
+        }
+        catch (OperationCanceledException)
+        {
+            Cancelled(next);
+        }
+        catch (Exception e)
+        {
+            first.Fail(e.Message);
+            State = BatchState.Failed;
+        }
+    }
+
+    List<DiscRow> Discs(int count)
+    {
+        while (rows.Count < count) Add().Step("Waiting\u2026");
+        if (count > 1)
+            for (int d = 0; d < count; d++) rows[d].Label = $"Disc {d + 1}";
+        return rows;
+    }
+
+    public void Cancelled(int from = 0)
+    {
+        foreach (var row in rows.Skip(from)) row.Cancelled();
+        State = BatchState.Cancelled;
+    }
+
+    string OutputPath(string folder, int? disc)
+    {
+        var dst = Cli.OutputPath(Path, folder, Settings.Current.SaveSuffix, disc);
+        return string.Equals(System.IO.Path.GetFullPath(dst), System.IO.Path.GetFullPath(Path), StringComparison.OrdinalIgnoreCase) ? Cli.OutputPath(Path, folder, disc: disc) : dst;
+    }
+}
+
+sealed class DiscRow
+{
     readonly ProgressRing ring = new() { Width = 20, Height = 20, IsActive = true };
     readonly FontIcon outcome = new() { FontSize = 18, Visibility = Visibility.Collapsed };
     readonly Controls.StageView preview = new() { Interactive = false, MaxSide = 160, Backdrop = Backdrop.Checkerboard, Square = 6, Width = 72, Height = 72, IsHitTestVisible = false };
-    readonly TextBlock size = Caption("Waiting\u2026"), file = Caption("");
+    readonly TextBlock label = new() { Visibility = Visibility.Collapsed, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] };
+    readonly TextBlock size = Caption(""), file = Caption("");
+    readonly TextBlock step = Caption("");
     readonly FontIcon copyIcon = Icon("\uE8C8");
     readonly Button copy, stage, view;
     readonly StackPanel buttons = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
@@ -180,36 +303,18 @@ sealed class BatchRow
 
     public BatchState State { get; private set; }
 
-    public string Path { get; }
-
-    public static BatchRow Failed(string path, string message, Image? preview = null)
+    public DiscRow()
     {
-        var row = new BatchRow(path);
-        row.Fail(message);
-        if (preview is not null) _ = row.preview.ShowAsync(preview);
-        return row;
-    }
-
-    void Fail(string message)
-    {
-        size.Visibility = Visibility.Collapsed;
-        file.Text = message;
-        file.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
-        Finish(failed: true);
-    }
-
-    public BatchRow(string path, string? black = null)
-    {
-        (Path, this.black) = (path, black);
-        var name = new TextBlock { Text = black is null ? System.IO.Path.GetFileName(path) : $"{System.IO.Path.GetFileName(path)} + {System.IO.Path.GetFileName(black)}", TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] };
-        ToolTipService.SetToolTip(name, black is null ? path : $"{path}\n{black} (over black)");
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2, Children = { name, size, file } };
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2, Children = { label, size, file } };
         var status = new Grid { Width = 24, VerticalAlignment = VerticalAlignment.Center, Children = { ring, outcome } };
+        (step.VerticalAlignment, step.HorizontalAlignment, step.TextAlignment, step.MaxWidth) = (VerticalAlignment.Center, HorizontalAlignment.Right, TextAlignment.Right, 220);
+        var right = new Grid { VerticalAlignment = VerticalAlignment.Center, Children = { step, buttons } };
         var row = new Grid
         {
             ColumnSpacing = 12,
+            MinHeight = 72,
             ColumnDefinitions = { new() { Width = GridLength.Auto }, new() { Width = GridLength.Auto }, new(), new() { Width = GridLength.Auto } },
-            Children = { status, preview, text },
+            Children = { status, preview, text, right },
         };
         copy = new Button { Content = copyIcon, Padding = new Thickness(9, 8, 9, 8) };
         stage = new Button { Content = Labelled("\uE8A1", "Preview") };
@@ -224,10 +329,9 @@ sealed class BatchRow
         var corners = visual.Compositor.CreateRoundedRectangleGeometry();
         (corners.Size, corners.CornerRadius) = (new((float)preview.Width, (float)preview.Height), new(4, 4));
         visual.Clip = visual.Compositor.CreateGeometricClip(corners);
-        row.Children.Add(buttons);
         Grid.SetColumn(preview, 1);
         Grid.SetColumn(text, 2);
-        Grid.SetColumn(buttons, 3);
+        Grid.SetColumn(right, 3);
         copy.Click += async (_, _) =>
         {
             if (output is null) return;
@@ -253,8 +357,30 @@ sealed class BatchRow
         {
             if (output is not null) await Windows.System.Launcher.LaunchFileAsync(await StorageFile.GetFileFromPathAsync(output));
         };
-        Element = new Border { Style = (Style)Application.Current.Resources["Card"], Padding = new Thickness(12, 8, 12, 8), Child = row };
+        Element = new Border { BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], Padding = new Thickness(12, 8, 12, 8), Child = row };
     }
+
+    public string Label
+    {
+        set => Show(label, value);
+    }
+
+    public void Step(string text) => Show(step, text);
+
+    public Task ShowAsync(Image image) => preview.ShowAsync(image);
+
+    public async Task SavedAsync(Image result, string dst)
+    {
+        await preview.ShowAsync(result);
+        Describe(result, new FileInfo(dst).Length);
+        output = dst;
+        ToolTipService.SetToolTip(view, $"Open {dst} in the default viewer");
+        Show(step, "");
+        buttons.Visibility = Visibility.Visible;
+        Finish(failed: false);
+    }
+
+    static void Show(TextBlock line, string text) => (line.Text, line.Visibility) = (text, text.Length > 0 ? Visibility.Visible : Visibility.Collapsed);
 
     static FontIcon Icon(string glyph) => new() { Glyph = glyph, FontSize = 14 };
 
@@ -275,68 +401,30 @@ sealed class BatchRow
     {
         Text = text,
         TextWrapping = TextWrapping.Wrap,
+        Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
         Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
         Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
     };
 
-    public async Task ProcessAsync(string folder, CancellationToken closing)
+    void Describe(int width, int height, double? dpi, long bytes)
     {
-        try
-        {
-            size.Text = "Opening\u2026";
-            Image? scan = await Task.Run(() => Image.LoadAsync(Path));
-            Describe(scan, new FileInfo(Path).Length);
-            string details = file.Text;
-            await preview.ShowAsync(scan);
-            Image? blackScan = null;
-            if (black is not null)
-            {
-                file.Text = $"{details} \u00B7 opening the scan over black\u2026";
-                blackScan = await Task.Run(() => Image.LoadAsync(black));
-                if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
-            }
-            file.Text = $"{details} \u00B7 removing the background\u2026";
-            var result = await Task.Run(() => Remover.RemoveBackground(scan, blackScan));
-            (scan, blackScan) = (null, null);
-            closing.ThrowIfCancellationRequested();
-            if (Settings.Current.AutoRotation)
-            {
-                file.Text = $"{details} \u00B7 auto rotating\u2026";
-                var turned = result;
-                result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotate(turned)));
-                closing.ThrowIfCancellationRequested();
-            }
-            var dst = OutputPath(folder);
-            file.Text = "Saving\u2026";
-            await Task.Run(() => result.SavePngAsync(dst));
-            await preview.ShowAsync(result);
-            Describe(result, new FileInfo(dst).Length);
-            output = dst;
-            ToolTipService.SetToolTip(view, $"Open {dst} in the default viewer");
-            buttons.Visibility = Visibility.Visible;
-            Finish(failed: false);
-        }
-        catch (OperationCanceledException)
-        {
-            Cancelled();
-        }
-        catch (Exception e)
-        {
-            if (size.Text == "Opening\u2026") size.Visibility = Visibility.Collapsed;
-            Fail(e.Message);
-        }
+        Show(size, $"{width:N0} \u00D7 {height:N0} px \u00B7 {width * (double)height / 1e6:0.#} MP");
+        Show(file, $"{ScanView.Dpi(dpi)} \u00B7 {ScanView.FileSize(bytes)}");
     }
 
-    void Describe(Image image, long bytes)
+    public void Describe(Image image, long bytes) => Describe(image.Width, image.Height, image.Dpi, bytes);
+
+    public void Fail(string message)
     {
-        size.Text = $"{image.Width:N0} \u00D7 {image.Height:N0} px \u00B7 {image.Width * (double)image.Height / 1e6:0.#} MP";
-        file.Text = $"{ScanView.Dpi(image)} \u00B7 {ScanView.FileSize(bytes)}";
+        Show(step, "");
+        Show(file, message);
+        file.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+        Finish(failed: true);
     }
 
     public void Cancelled()
     {
-        size.Visibility = Visibility.Collapsed;
-        file.Text = "Cancelled";
+        Show(step, "Cancelled");
         State = BatchState.Cancelled;
         (ring.IsActive, ring.Visibility, outcome.Visibility) = (false, Visibility.Collapsed, Visibility.Visible);
         (outcome.Glyph, outcome.Foreground) = ("\uE711", (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]);
@@ -349,12 +437,6 @@ sealed class BatchRow
         (outcome.Glyph, outcome.Foreground) = failed
             ? ("\uE711", (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"])
             : ("\uE73E", (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"]);
-    }
-
-    string OutputPath(string folder)
-    {
-        var dst = Cli.OutputPath(Path, folder, Settings.Current.SaveSuffix);
-        return string.Equals(System.IO.Path.GetFullPath(dst), System.IO.Path.GetFullPath(Path), StringComparison.OrdinalIgnoreCase) ? Cli.OutputPath(Path, folder) : dst;
     }
 }
 

@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checked with its spell checker (left as scanned when it can't tell): in the app as the stage's angle, in
   Batch Mode and on the command line in the saved PNG. In Settings and on the command line it can be turned
   off, read in another installed OCR language, or limited to small turns.
+- Scans with more than one disc on them: each disc is found and gets its own result, in reading order. The app
+  shows a tab for each under the scan's tab, Before framing where the chosen disc is cut from the scan; Batch
+  Mode gives each disc a row under the scan's name; the command line saves `IMAGE_disc1_nobg.png` and so on.
 - Windows installer.
 
 [Unreleased]: https://github.com/rlaphoenix/Lychee/commits/main

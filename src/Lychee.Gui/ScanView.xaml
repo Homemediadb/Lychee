@@ -59,7 +59,14 @@
         <Grid Grid.Row="1" ColumnDefinitions="*,180">
             <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
                 <Grid x:Name="StageArea" SizeChanged="OnStageAreaSizeChanged">
-                    <controls:StageView x:Name="Preview" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Grid x:Name="StageBox" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <controls:StageView x:Name="Preview" />
+                        <Border x:Name="DiscTabs" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0" Padding="4,0"
+                                CornerRadius="4" BorderThickness="1" Visibility="Collapsed"
+                                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                            <SelectorBar x:Name="DiscBar" SelectionChanged="OnDiscSelected" AutomationProperties.Name="Discs on this scan" />
+                        </Border>
+                    </Grid>
                 </Grid>
             </Border>
 

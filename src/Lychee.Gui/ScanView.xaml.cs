@@ -15,12 +15,26 @@ public sealed partial class ScanView : UserControl
     readonly MainWindow owner;
     Image? scan, black;
     string? blackPath, pairedBlack;
-    readonly Task<Image>?[] results = new Task<Image>?[2];
+    readonly Task<IReadOnlyList<Image>>?[] results = new Task<IReadOnlyList<Image>>?[2];
     bool showAfter = true, opening = true, choosingBlack, closed, matting;
-    double angle;
-    Task? autoRotating;
-    bool turnedByHand;
+    int disc;
+    readonly List<DiscTurn> turns = [];
     IEnumerable<Controls.StageView> Previews => Backdrops.Thumbnails.Prepend(Preview);
+
+    sealed class DiscTurn
+    {
+        public double Angle;
+        public bool ByHand;
+        public Task? Auto;
+    }
+
+    DiscTurn Shown => Turn(disc);
+
+    DiscTurn Turn(int d)
+    {
+        while (turns.Count <= d) turns.Add(new());
+        return turns[d];
+    }
 
     public ScanView(MainWindow owner, string path, string? black = null)
     {
@@ -30,7 +44,7 @@ public sealed partial class ScanView : UserControl
         InitializeComponent();
         Preview.Rotated += a =>
         {
-            turnedByHand = true;
+            Shown.ByHand = true;
             Turn(a);
         };
         SaveOverlay.Closed += () =>
@@ -106,45 +120,71 @@ public sealed partial class ScanView : UserControl
         (scan, black) = (null, null);
     }
 
-    Task<Image> Result(int p)
+    Task<IReadOnlyList<Image>> Result(int p)
     {
         if (results[p - 1] is { } existing) return existing;
         var (s, b) = (scan!, p == 2 ? black : null);
-        var job = results[p - 1] = Task.Run(() => Remover.RemoveBackground(s, b));
+        var job = results[p - 1] = Task.Run(() => Remover.RemoveBackgrounds(s, b));
         _ = job.ContinueWith(_ => UpdateState(), TaskScheduler.FromCurrentSynchronizationContext());
         return job;
     }
 
     void Turn(double a)
     {
-        angle = a;
+        Shown.Angle = a;
         foreach (var v in Previews) v.Angle = a;
-        if (showAfter && results[Pass - 1] is { IsCompletedSuccessfully: true } done) Describe(done.Result);
+        if (showAfter && results[Pass - 1] is { IsCompletedSuccessfully: true } done) Describe(done.Result[disc]);
     }
 
-    async Task AutoRotate(Image result)
+    async Task AutoRotate(Image result, DiscTurn turn)
     {
         double a;
         try { a = await Task.Run(() => Settings.Current.AutoRotate(result)); }
         catch (Exception) { return; }
-        if (!closed && !turnedByHand && a != 0) Turn(a);
+        if (closed || turn.ByHand || a == 0) return;
+        if (ReferenceEquals(turn, Shown)) Turn(a);
+        else turn.Angle = a;
     }
 
-    async Task<Image> Final(int p)
+    async Task<Image> Final(int p, int d)
     {
-        var result = await Result(p);
-        if (autoRotating is { } s) await s;
-        var a = angle;
-        return await Task.Run(() => result.Rotated(a));
+        var all = await Result(p);
+        var turn = Turn(d);
+        await (turn.Auto ??= AutoRotate(all[d], turn));
+        var a = turn.Angle;
+        return await Task.Run(() => all[d].Rotated(a));
     }
 
-    async Task Refresh()
+    void ShowDiscs(int count)
+    {
+        if (DiscBar.Items.Count == count || count < 2) return;
+        DiscBar.Items.Clear();
+        for (int d = 0; d < count; d++)
+        {
+            var item = new SelectorBarItem { Text = $"Disc {d + 1}" };
+            AutomationProperties.SetName(item, $"Disc {d + 1} of {count}");
+            DiscBar.Items.Add(item);
+        }
+        DiscBar.SelectedItem = DiscBar.Items[Math.Min(disc, count - 1)];
+        DiscTabs.Visibility = Visibility.Visible;
+    }
+
+    async void OnDiscSelected(SelectorBar sender, SelectorBarSelectionChangedEventArgs e)
+    {
+        int d = sender.SelectedItem is { } item ? sender.Items.IndexOf(item) : -1;
+        if (d < 0 || d == disc) return;
+        disc = d;
+        foreach (var v in Previews) v.Angle = Shown.Angle;
+        await Refresh(refit: true);
+    }
+
+    async Task Refresh(bool refit = false)
     {
         if (scan is not { } opened) return;
-        int p = Pass;
+        int p = Pass, d = disc;
         if (!showAfter) _ = Preview.ShowAsync(opened);
         var job = Result(p);
-        Describe(!showAfter ? opened : job.IsCompletedSuccessfully ? job.Result : null);
+        Describe(!showAfter ? opened : job.IsCompletedSuccessfully ? job.Result[d] : null);
         if (!job.IsCompleted)
         {
             foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
@@ -154,7 +194,10 @@ public sealed partial class ScanView : UserControl
         Image result;
         try
         {
-            result = await job;
+            var all = await job;
+            if (Pass != p || disc != d || closed) return;
+            ShowDiscs(all.Count);
+            result = all[d];
         }
         catch (Exception ex)
         {
@@ -165,11 +208,11 @@ public sealed partial class ScanView : UserControl
             UpdateState();
             return;
         }
-        if (Pass != p || closed) return;
         SetStatus("");
         if (showAfter) Describe(result);
-        Preview.FitTo(result);
-        autoRotating ??= AutoRotate(result);
+        Preview.FitTo(result, refit);
+        Preview.Highlight = !showAfter && DiscBar.Items.Count > 1;
+        Shown.Auto ??= AutoRotate(result, Shown);
         await Task.WhenAll((showAfter ? Previews : Backdrops.Thumbnails).Select(v => v.ShowAsync(result)));
     }
 
@@ -257,11 +300,11 @@ public sealed partial class ScanView : UserControl
     async void OnCopy(object sender, RoutedEventArgs e)
     {
         if (scan is null || !CopyButton.IsEnabled) return;
-        int p = Pass;
+        var (p, d) = (Pass, disc);
         CopyButton.IsEnabled = false;
         try
         {
-            await CopyPngAsync(await (await Final(p)).EncodePngAsync());
+            await CopyPngAsync(await (await Final(p, d)).EncodePngAsync());
             (CopyIcon.Visibility, CopiedIcon.Visibility) = (Visibility.Collapsed, Visibility.Visible);
             await Task.Delay(1500);
             (CopyIcon.Visibility, CopiedIcon.Visibility) = (Visibility.Visible, Visibility.Collapsed);
@@ -296,9 +339,9 @@ public sealed partial class ScanView : UserControl
             if (ReferenceEquals(image, scan)) bytes = new FileInfo(Path).Length;
             else
             {
-                if (encoded is not { } e || !ReferenceEquals(e.Result, image) || e.Angle != angle)
+                if (encoded is not { } e || !ReferenceEquals(e.Result, image) || e.Angle != Shown.Angle)
                 {
-                    var a = angle;
+                    var a = Shown.Angle;
                     encoded = e = (image, a, Task.Run(async () => (long)(await image.Rotated(a).EncodePngAsync()).Length));
                 }
                 bytes = await e.Bytes;
@@ -327,33 +370,37 @@ public sealed partial class ScanView : UserControl
         _ => $"{bytes / 1024.0:0} KB",
     };
 
-    internal static string Dpi(Image image) => image.Dpi is double dpi ? $"{dpi:0.##} dpi" : "dpi not recorded";
+    internal static string Dpi(Image image) => Dpi(image.Dpi);
+
+    internal static string Dpi(double? dpi) => dpi is double d ? $"{d:0.##} dpi" : "dpi not recorded";
 
     public FrameworkElement StageSpace => StageArea;
 
     void OnStageAreaSizeChanged(object sender, SizeChangedEventArgs e) =>
-        Preview.Width = Preview.Height = Math.Min(e.NewSize.Width, e.NewSize.Height);
+        StageBox.Width = StageBox.Height = Math.Min(e.NewSize.Width, e.NewSize.Height);
 
     public void Save() => OnSave(this, new RoutedEventArgs());
 
     async void OnSave(object sender, RoutedEventArgs e)
     {
         if (scan is null || !SaveButton.IsEnabled) return;
+        int discs = DiscBar.Items.Count;
         var picker = new FileSavePicker(owner.AppWindow.Id)
         {
-            SuggestedFileName = System.IO.Path.GetFileNameWithoutExtension(Path) + Settings.Current.SaveSuffix,
+            SuggestedFileName = Cli.Name(Path, Settings.Current.SaveSuffix, discs > 1 ? disc + 1 : null),
             SuggestedFolder = System.IO.Path.GetDirectoryName(Path),
         };
         picker.FileTypeChoices.Add("PNG image", [".png"]);
         if (await picker.PickSaveFileAsync() is not { } file) return;
 
-        int p = Pass;
+        var (p, d) = (Pass, disc);
+        var turn = Turn(d);
         SaveState = SaveState.Saving;
         var cancel = SaveOverlay.ShowProgress(file.Path);
         try
         {
             SaveOverlay.Report(results[p - 1] is { IsCompleted: true } ? "Writing the PNG\u2026" : "Removing the background\u2026", 0);
-            var result = await Final(p);
+            var result = await Final(p, d);
             cancel.ThrowIfCancellationRequested();
             SaveOverlay.Report("Writing the PNG\u2026", 0);
             await Task.Run(() => result.SavePngAsync(file.Path));
@@ -363,14 +410,16 @@ public sealed partial class ScanView : UserControl
                 File.Delete(file.Path);
                 throw new OperationCanceledException();
             }
-            var facts = new List<(string, string?)>
+            var facts = new List<(string, string?)>();
+            if (discs > 1) facts.Add(("Disc", $"{d + 1} of {discs}"));
+            facts.AddRange(new List<(string, string?)>
             {
                 ("Resolution", $"{result.Width:N0} \u00D7 {result.Height:N0} px"),
                 ("DPI", result.Dpi is double dpi ? $"{dpi:0.##}" : "Not recorded"),
                 ("File size", FileSize(new FileInfo(file.Path).Length)),
-            };
+            });
             facts.Add(("Matting", p == 2 ? System.IO.Path.GetFileName(blackPath) : "Off"));
-            if (angle != 0) facts.Add(("Rotation", $"{angle:0.#}\u00B0"));
+            if (turn.Angle != 0) facts.Add(("Rotation", $"{turn.Angle:0.#}\u00B0"));
             SaveOverlay.ShowDone(file.Path, [.. facts]);
             SaveState = SaveState.Saved;
         }

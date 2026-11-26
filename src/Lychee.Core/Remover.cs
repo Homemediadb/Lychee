@@ -11,13 +11,12 @@ public static class Remover
     // Hole/disc diameter of CDs, DVDs and Blu-rays, for scans with no hole edge
     const double Hole = 15 / 120.0;
 
-    public static Image RemoveBackground(Image rgb, Image? black = null)
-    {
-        var (matted, outer) = Matte(rgb, black);
-        return Trim(matted, outer);
-    }
+    public static IReadOnlyList<Image> RemoveBackgrounds(Image rgb, Image? black = null) =>
+        [.. Mattes(rgb, black).Select(m => Trim(m.Matted, m.Outer))];
 
-    public static (Image Matted, Ellipse Outer) Matte(Image rgb, Image? black = null)
+    public static (Image Matted, Ellipse Outer) Matte(Image rgb, Image? black = null) => Mattes(rgb, black).First();
+
+    public static IEnumerable<(Image Matted, Ellipse Outer)> Mattes(Image rgb, Image? black = null)
     {
         if (rgb.Channels != 3) throw new ArgumentException("expected an RGB scan");
         int w = rgb.Width, h = rgb.Height;
@@ -118,142 +117,168 @@ public static class Remover
         fromCorners = null;
 
         // 2. Outer ellipse: the discs are the round, solid shapes that aren't background
-        var disc = DiscShape(bgm, w, h);
-        var (ex, ey) = (new List<double>(), new List<double>());
-        for (int y = 1; y < h - 1; y++)
-            for (int x = 1; x < w - 1; x++)
-            {
-                int i = y * w + x;
-                if (bgm[i] && (disc[i - 1] || disc[i + 1] || disc[i - w] || disc[i + w])) { ex.Add(x); ey.Add(y); }
-            }
-        disc = null;
-        if (ex.Count < 50) throw new InvalidDataException("no disc edge found");
-        var outer = Ellipse.Fit([.. ex], [.. ey]);
+        var coarse = new List<Ellipse>();
+        foreach (var seed in DiscSeeds(bgm, w, h))
+        {
+            var shape = Fill(w, h, [seed], i => !bgm[i]);
+            var (ex, ey) = (new List<double>(), new List<double>());
+            for (int y = 1; y < h - 1; y++)
+                for (int x = 1; x < w - 1; x++)
+                {
+                    int i = y * w + x;
+                    if (bgm[i] && (shape[i - 1] || shape[i + 1] || shape[i - w] || shape[i + w])) { ex.Add(x); ey.Add(y); }
+                }
+            if (ex.Count >= 50) coarse.Add(Ellipse.Fit([.. ex], [.. ey]));
+        }
+        if (coarse.Count == 0) throw new InvalidDataException("no disc edge found");
         double Dark(int x, int y) => dark[y * w + x];
-        foreach (var (s0, s1) in new[] { (1.03, 0.9), (1.02, 0.98) })
+        var ordered = ReadingOrder(coarse);
+        for (int at = 0; at < ordered.Count; at++)
         {
-            var (bx, by) = EdgePoints(Dark, w, h, outer, s0, s1, t);
-            outer = Ellipse.Fit(bx, by, outer);
-        }
-        double R = outer.R;
-        double Lum(int x, int y)
-        {
-            int i = 3 * (y * w + x);
-            return (px[i] + px[i + 1] + (double)px[i + 2]) / 3 / 255;
-        }
-        double Tint(int x, int y)
-        {
-            double lo = double.PositiveInfinity, hi = double.NegativeInfinity;
-            for (int ch = 0; ch < 3; ch++)
+            var mine = ordered[at];
+            var outer = mine;
+            foreach (var (s0, s1) in new[] { (1.03, 0.9), (1.02, 0.98) })
             {
-                double v = px[3 * (y * w + x) + ch] / Light(x, y, ch);
-                (lo, hi) = (Math.Min(lo, v), Math.Max(hi, v));
+                var (bx, by) = EdgePoints(Dark, w, h, outer, s0, s1, t);
+                outer = Ellipse.Fit(bx, by, outer);
             }
-            return hi - lo;
-        }
-        var (dx, dy) = DiscPoints(Lum, Tint, w, h, outer, 1 + 2 / R, 0.9, t);
-        outer = Ellipse.Fit(dx, dy, outer);
-
-        // 3. Hole (1-pass), and the lid's lighting seen through it
-        Ellipse? hole = black is null ? FindHole(Lum, w, h, outer, t) : null;
-        double[][]? lid = null;
-        if (hole is { } hl)
-        {
-            var (ptp, ptb) = (new double[3, 3], new double[3, 3]);
-            int r0 = (int)Math.Ceiling(hl.R * (1 + Math.Abs(hl.E))) + 1;
-            for (int y = Math.Max(0, (int)hl.Cy - r0); y < Math.Min(h, (int)hl.Cy + r0); y++)
-                for (int x = Math.Max(0, (int)hl.Cx - r0); x < Math.Min(w, (int)hl.Cx + r0); x++)
-                {
-                    if (hl.Dist(x, y) >= -0.15 * hl.R) continue;
-                    double[] f = [1, x, y];
-                    for (int a = 0; a < 3; a++)
-                    {
-                        for (int b = 0; b < 3; b++) ptp[a, b] += f[a] * f[b];
-                        for (int ch = 0; ch < 3; ch++) ptb[ch, a] += f[a] * px[3 * (y * w + x) + ch];
-                    }
-                }
-            if (ptp[0, 0] >= 3) lid = [.. Enumerable.Range(0, 3).Select(ch => Solve(ptp, [ptb[ch, 0], ptb[ch, 1], ptb[ch, 2]]))];
-        }
-
-        // 4. Alpha: the disc opaque, the rest matted against the background
-        byte[]? blk = null;
-        var (blackLevel, blackGain) = (new double[3], new double[3]);
-        if (black is not null)
-        {
-            // Assumes the disc didn't move between the two scans
-            if (black.Width != w || black.Height != h || black.Channels != 3) throw new InvalidDataException("black scan is not the same size as the white one");
-            blk = black.Pixels;
-            // Only around the disc counts: black paper needn't cover the whole scan
-            var hist = new long[3][];
-            for (int ch = 0; ch < 3; ch++) hist[ch] = new long[256];
-            var (wb, bb) = (new double[3], new double[3]);
-            int reach = (int)Math.Ceiling(outer.R * (1 + Math.Abs(outer.E)) * 1.2);
-            for (int y = Math.Max(0, (int)outer.Cy - reach); y < Math.Min(h, (int)outer.Cy + reach); y++)
-                for (int x = Math.Max(0, (int)outer.Cx - reach); x < Math.Min(w, (int)outer.Cx + reach); x++)
-                {
-                    double d = outer.Dist(x, y);
-                    int i = 3 * (y * w + x);
-                    if (d > 0.03 * outer.R && d < 0.15 * outer.R)
-                        for (int ch = 0; ch < 3; ch++) hist[ch][blk[i + ch]]++;
-                    else if (d < -0.05 * outer.R && Math.Sqrt(Sq(x - outer.Cx) + Sq(y - outer.Cy)) > 0.42 * outer.R)
-                        for (int ch = 0; ch < 3; ch++) (wb[ch], bb[ch]) = (wb[ch] + px[i + ch] * (double)blk[i + ch], bb[ch] + Sq(blk[i + ch]));
-                }
-            for (int ch = 0; ch < 3; ch++)
+            double R = outer.R;
+            double Lum(int x, int y)
             {
-                if (hist[ch].Sum() == 0) throw new InvalidDataException("no black backdrop round the disc in the black scan");
-                blackGain[ch] = bb[ch] > 0 ? Math.Clamp(wb[ch] / bb[ch], 0.8, 1.25) : 1;
-                blackLevel[ch] = Median(hist[ch]) * blackGain[ch];
+                int i = 3 * (y * w + x);
+                return (px[i] + px[i + 1] + (double)px[i + 2]) / 3 / 255;
             }
-        }
-        var output = new byte[w * h * 4];
-        Parallel.For(0, h, y =>
-        {
-            Span<double> light = stackalloc double[3], basis = stackalloc double[3], ink = stackalloc double[3], fg = stackalloc double[3];
-            for (int x = 0; x < w; x++)
+            double Tint(int x, int y)
             {
-                int i = y * w + x;
-                double cover = Math.Clamp(0.5 - outer.Dist(x, y) / Feather, 0, 1);
-                double inHole = hole is { } hl ? hl.Dist(x, y) : 1;
-                cover *= Math.Clamp(0.5 + inHole / Feather, 0, 1);
-                double d = dark[i], floor = t + Faint;
-                for (int ch = 0; ch < 3; ch++) basis[ch] = light[ch] = Light(x, y, ch);
-                if (inHole < 0)
-                {
-                    (d, floor) = (0, t);
-                    for (int ch = 0; ch < 3; ch++)
-                    {
-                        if (lid is not null) basis[ch] = lid[ch][0] + lid[ch][1] * x + lid[ch][2] * y;
-                        d = Math.Max(d, Math.Clamp((basis[ch] - px[3 * i + ch]) / Math.Max(basis[ch], 1), 0, 1));
-                    }
-                }
-                double a = Math.Clamp((d - floor) / (1 - floor), 0, 1);
-                double disc = 1, shows = 0;
+                double lo = double.PositiveInfinity, hi = double.NegativeInfinity;
                 for (int ch = 0; ch < 3; ch++)
                 {
-                    double v = px[3 * i + ch];
-                    ink[ch] = a > 0 ? Math.Clamp((v - (1 - a) * basis[ch]) / a, 0, 255) : 0;
-                    fg[ch] = v;
-                    if (blk is not null) shows += (v - blackGain[ch] * blk[3 * i + ch]) / Math.Max(light[ch] - blackLevel[ch], 1) / 3;
+                    double v = px[3 * (y * w + x) + ch] / Light(x, y, ch);
+                    (lo, hi) = (Math.Min(lo, v), Math.Max(hi, v));
                 }
-                if (blk is not null)
-                {
-                    disc = Math.Clamp((1 - shows - t) / (1 - 2 * t), 0, 1);
-                    for (int ch = 0; ch < 3; ch++)
-                        fg[ch] = disc > 0 ? Math.Clamp((px[3 * i + ch] - (1 - disc) * light[ch]) / disc, 0, 255) : 0;
-                }
-                bool solid = cover == 1 && disc == 1;
-                double shade = (1 - cover) * a;
-                cover *= disc;
-                double alpha = cover + shade;
-                byte A = (byte)Math.Clamp(Math.Round(alpha * 255), 0, 255);
-                output[4 * i + 3] = A;
-                for (int ch = 0; ch < 3; ch++)
-                    output[4 * i + ch] = solid ? px[3 * i + ch]
-                        : A == 0 ? (byte)0
-                        : (byte)Math.Clamp(Math.Round((cover * fg[ch] + shade * ink[ch]) / alpha), 0, 255);
+                return hi - lo;
             }
-        });
-        return (new Image(w, h, 4, output, rgb.Dpi), outer);
+            var (dx, dy) = DiscPoints(Lum, Tint, w, h, outer, 1 + 2 / R, 0.9, t);
+            outer = Ellipse.Fit(dx, dy, outer);
+
+            // 3. Hole (1-pass), and the lid's lighting seen through it
+            Ellipse? hole = black is null ? FindHole(Lum, w, h, outer, t) : null;
+            double[][]? lid = null;
+            if (hole is { } hl)
+            {
+                var (ptp, ptb) = (new double[3, 3], new double[3, 3]);
+                int r0 = (int)Math.Ceiling(hl.R * (1 + Math.Abs(hl.E))) + 1;
+                for (int y = Math.Max(0, (int)hl.Cy - r0); y < Math.Min(h, (int)hl.Cy + r0); y++)
+                    for (int x = Math.Max(0, (int)hl.Cx - r0); x < Math.Min(w, (int)hl.Cx + r0); x++)
+                    {
+                        if (hl.Dist(x, y) >= -0.15 * hl.R) continue;
+                        double[] f = [1, x, y];
+                        for (int a = 0; a < 3; a++)
+                        {
+                            for (int b = 0; b < 3; b++) ptp[a, b] += f[a] * f[b];
+                            for (int ch = 0; ch < 3; ch++) ptb[ch, a] += f[a] * px[3 * (y * w + x) + ch];
+                        }
+                    }
+                if (ptp[0, 0] >= 3) lid = [.. Enumerable.Range(0, 3).Select(ch => Solve(ptp, [ptb[ch, 0], ptb[ch, 1], ptb[ch, 2]]))];
+            }
+
+            // 4. Alpha: the disc opaque, the rest matted against the background
+            byte[]? blk = null;
+            var (blackLevel, blackGain) = (new double[3], new double[3]);
+            if (black is not null)
+            {
+                // Assumes the disc didn't move between the two scans
+                if (black.Width != w || black.Height != h || black.Channels != 3) throw new InvalidDataException("black scan is not the same size as the white one");
+                blk = black.Pixels;
+                // Only around the disc counts: black paper needn't cover the whole scan
+                var hist = new long[3][];
+                for (int ch = 0; ch < 3; ch++) hist[ch] = new long[256];
+                var (wb, bb) = (new double[3], new double[3]);
+                int reach = (int)Math.Ceiling(outer.R * (1 + Math.Abs(outer.E)) * 1.2);
+                for (int y = Math.Max(0, (int)outer.Cy - reach); y < Math.Min(h, (int)outer.Cy + reach); y++)
+                    for (int x = Math.Max(0, (int)outer.Cx - reach); x < Math.Min(w, (int)outer.Cx + reach); x++)
+                    {
+                        double d = outer.Dist(x, y);
+                        int i = 3 * (y * w + x);
+                        if (d > 0.03 * outer.R && d < 0.15 * outer.R)
+                            for (int ch = 0; ch < 3; ch++) hist[ch][blk[i + ch]]++;
+                        else if (d < -0.05 * outer.R && Math.Sqrt(Sq(x - outer.Cx) + Sq(y - outer.Cy)) > 0.42 * outer.R)
+                            for (int ch = 0; ch < 3; ch++) (wb[ch], bb[ch]) = (wb[ch] + px[i + ch] * (double)blk[i + ch], bb[ch] + Sq(blk[i + ch]));
+                    }
+                for (int ch = 0; ch < 3; ch++)
+                {
+                    if (hist[ch].Sum() == 0) throw new InvalidDataException("no black backdrop round the disc in the black scan");
+                    blackGain[ch] = bb[ch] > 0 ? Math.Clamp(wb[ch] / bb[ch], 0.8, 1.25) : 1;
+                    blackLevel[ch] = Median(hist[ch]) * blackGain[ch];
+                }
+            }
+            var others = coarse.Where(o => o != mine).ToArray();
+            bool Theirs(int x, int y)
+            {
+                double own = mine.Dist(x, y) / mine.R;
+                foreach (var o in others) if (o.Dist(x, y) / o.R < own) return true;
+                return false;
+            }
+            var output = new byte[w * h * 4];
+            Parallel.For(0, h, y =>
+            {
+                Span<double> light = stackalloc double[3], basis = stackalloc double[3], ink = stackalloc double[3], fg = stackalloc double[3];
+                for (int x = 0; x < w; x++)
+                {
+                    int i = y * w + x;
+                    if (Theirs(x, y)) continue;
+                    double cover = Math.Clamp(0.5 - outer.Dist(x, y) / Feather, 0, 1);
+                    double inHole = hole is { } hl ? hl.Dist(x, y) : 1;
+                    cover *= Math.Clamp(0.5 + inHole / Feather, 0, 1);
+                    double d = dark[i], floor = t + Faint;
+                    for (int ch = 0; ch < 3; ch++) basis[ch] = light[ch] = Light(x, y, ch);
+                    if (inHole < 0)
+                    {
+                        (d, floor) = (0, t);
+                        for (int ch = 0; ch < 3; ch++)
+                        {
+                            if (lid is not null) basis[ch] = lid[ch][0] + lid[ch][1] * x + lid[ch][2] * y;
+                            d = Math.Max(d, Math.Clamp((basis[ch] - px[3 * i + ch]) / Math.Max(basis[ch], 1), 0, 1));
+                        }
+                    }
+                    double a = Math.Clamp((d - floor) / (1 - floor), 0, 1);
+                    double disc = 1, shows = 0;
+                    for (int ch = 0; ch < 3; ch++)
+                    {
+                        double v = px[3 * i + ch];
+                        ink[ch] = a > 0 ? Math.Clamp((v - (1 - a) * basis[ch]) / a, 0, 255) : 0;
+                        fg[ch] = v;
+                        if (blk is not null) shows += (v - blackGain[ch] * blk[3 * i + ch]) / Math.Max(light[ch] - blackLevel[ch], 1) / 3;
+                    }
+                    if (blk is not null)
+                    {
+                        disc = Math.Clamp((1 - shows - t) / (1 - 2 * t), 0, 1);
+                        for (int ch = 0; ch < 3; ch++)
+                            fg[ch] = disc > 0 ? Math.Clamp((px[3 * i + ch] - (1 - disc) * light[ch]) / disc, 0, 255) : 0;
+                    }
+                    bool solid = cover == 1 && disc == 1;
+                    double shade = (1 - cover) * a;
+                    cover *= disc;
+                    double alpha = cover + shade;
+                    byte A = (byte)Math.Clamp(Math.Round(alpha * 255), 0, 255);
+                    output[4 * i + 3] = A;
+                    for (int ch = 0; ch < 3; ch++)
+                        output[4 * i + ch] = solid ? px[3 * i + ch]
+                            : A == 0 ? (byte)0
+                            : (byte)Math.Clamp(Math.Round((cover * fg[ch] + shade * ink[ch]) / alpha), 0, 255);
+                }
+            });
+            yield return (new Image(w, h, 4, output, rgb.Dpi), outer);
+        }
+    }
+
+    static List<Ellipse> ReadingOrder(List<Ellipse> discs)
+    {
+        var rows = new List<List<Ellipse>>();
+        foreach (var d in discs.OrderBy(d => d.Cy))
+            if (rows.Count > 0 && d.Cy - rows[^1][0].Cy < rows[^1][0].R) rows[^1].Add(d);
+            else rows.Add([d]);
+        return [.. rows.SelectMany(r => r.OrderBy(d => d.Cx))];
     }
 
     public static Image Trim(Image matted, Ellipse p)
@@ -286,12 +311,13 @@ public static class Remover
 
     static double[] Terms(double x, double y) => [1, x, y, x * x, x * y, y * y];
 
-    static bool[] DiscShape(bool[] background, int w, int h)
+    static List<int> DiscSeeds(bool[] background, int w, int h)
     {
         var seen = new bool[w * h];
         var queue = new int[w * h];
-        int best = -1, largest = -1;
-        long bestArea = 0, largestArea = 0;
+        var round = new List<(int Seed, long Area)>();
+        int largest = -1;
+        long largestArea = 0;
         for (int start = 0; start < w * h; start++)
         {
             if (background[start] || seen[start]) continue;
@@ -310,7 +336,7 @@ public static class Remover
             long area = tail;
             double bw = x1 - x0 + 1, bh = y1 - y0 + 1, aspect = bw / bh, fill = area / (bw * bh);
             if (area > largestArea) (largest, largestArea) = (start, area);
-            if (aspect is > 0.75 and < 1.33 && fill is > 0.55 and < 0.95 && area > bestArea) (best, bestArea) = (start, area);
+            if (aspect is > 0.75 and < 1.33 && fill is > 0.55 and < 0.95) round.Add((start, area));
 
             void Visit(int j)
             {
@@ -319,7 +345,9 @@ public static class Remover
                 queue[tail++] = j;
             }
         }
-        return largest < 0 ? new bool[w * h] : Fill(w, h, [best >= 0 ? best : largest], i => !background[i]);
+        if (round.Count == 0) return largest < 0 ? [] : [largest];
+        long biggest = round.Max(r => r.Area);
+        return [.. round.Where(r => r.Area * 4 >= biggest).Select(r => r.Seed)];
     }
 
     static double Sq(double v) => v * v;
