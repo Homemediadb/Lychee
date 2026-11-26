@@ -112,8 +112,9 @@ public static class Remover
         vals = null;
         t = Math.Max(t, med + 4 * 1.4826 * mad);
         Parallel.For(0, w * h, i => dark[i] = Math.Clamp(dark[i], 0, 1));
+        // Invisible shading counts too, or a faint band could join the disc to the page edge
         var bgm = new bool[w * h];
-        Parallel.For(0, w * h, i => bgm[i] = fromCorners[i] && dark[i] <= t);
+        Parallel.For(0, w * h, i => bgm[i] = fromCorners[i] && dark[i] <= t + Faint);
         fromCorners = null;
 
         // 2. Outer ellipse: the discs are the round, solid shapes that aren't background
