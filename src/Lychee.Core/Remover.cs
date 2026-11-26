@@ -328,7 +328,7 @@ public static class Remover
         return Ellipse.Fit(dx, dy, outer);
     }
 
-    // 3. Hole (1-pass), and the lid's lighting seen through it
+    // 3. Hole (without matting), and the lid's lighting seen through it
     static double[][]? LidLighting(Levels s, Ellipse hole)
     {
         var (ptp, ptb) = (new double[3, 3], new double[3, 3]);

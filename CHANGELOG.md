@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release: background removal for CD, DVD and Blu-ray scans in 1-pass (over white) and
-  2-pass (over white and black), as a WinUI 3 app with tabs, Before / After, backdrops, Batch Mode
-  with automatic 2-pass pairing, and a command line in the same `Lychee.exe`.
+- Initial release: background removal for CD, DVD and Blu-ray scans from a scan over white, with
+  optional matting from a second scan over black, as a WinUI 3 app with tabs, Before / After, backdrops,
+  Batch Mode with automatic matting pairs, and a command line in the same `Lychee.exe`.
 - Turn the disc by dragging with the right button on the stage, Before and After alike; exported and copied
   turned, and saved turned from Batch Mode's Preview.
 - Auto Rotation: discs are turned so their print reads level, from their print read with Windows' OCR and

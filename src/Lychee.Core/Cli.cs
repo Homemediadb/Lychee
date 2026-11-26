@@ -12,9 +12,9 @@ public static class Cli
         next to each scan (or in OUTDIR), turned so its print reads level (Auto Rotation).
         A scan with more than one disc saves each: IMAGE_disc1_nobg.png, IMAGE_disc2_nobg.png...
 
-          1-pass (IMAGE alone): the hole is transparent, the disc and its clear plastic opaque;
+          IMAGE alone:          the hole is transparent, the disc and its clear plastic opaque;
                                 the shadow is kept as translucent shading.
-          2-pass (-b BLACK):    BLACK is the same disc, unmoved, scanned over black, one per
+          Matting (-b BLACK):   BLACK is the same disc, unmoved, scanned over black, one per
                                 IMAGE in order: the hole and clear plastic become see-through.
 
           -b, --black BLACK ...  the same scans over black, in order
