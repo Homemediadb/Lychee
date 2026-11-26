@@ -16,6 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   turned, and saved turned from Batch Mode's Preview.
 - Discs are turned upright on their own, from their print read with Windows' OCR (left as scanned when it
   can't tell): in the app as the stage's angle, in Batch Mode and on the command line in the saved PNG.
-- Windows installer, which also lists Lychee under "Open with" for PNG, JPEG, WebP and BMP.
+- Windows installer.
 
 [Unreleased]: https://github.com/rlaphoenix/Lychee/commits/main
