@@ -1,10 +1,12 @@
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
 
 namespace Lychee;
 
-public static class AutoRotation
+public static partial class AutoRotation
 {
     // Read within this share of the radius: past it, rim text curves at every angle
     const double Rim = 0.86;
@@ -18,14 +20,19 @@ public static class AutoRotation
     public static async Task<double> FindAsync(Image result)
     {
         if (result.Channels != 4 || result.DiscRadius <= 0) return 0;
-        if (OcrEngine.TryCreateFromUserProfileLanguages() is null) return 0;
+        if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } engine) return 0;
+        // Created in the thread pool's apartment, where it's used
+        var real = await Task.Run(() => Spelling(engine.RecognizerLanguage.LanguageTag));
         var votes = new System.Collections.Concurrent.ConcurrentBag<(double Angle, double Weight, bool Word)>();
         await Parallel.ForEachAsync(Enumerable.Range(0, 18).Select(i => i * 20.0), new ParallelOptions { MaxDegreeOfParallelism = 4 }, async (a, _) =>
         {
             var ocr = await OcrEngine.TryCreateFromUserProfileLanguages()!.RecognizeAsync(Render(result, a));
             foreach (var line in ocr.Lines)
             {
-                var words = line.Words.Where(w => w.Text.Length >= 3 && w.Text.All(char.IsLetterOrDigit) && w.Text.Distinct().Count() >= 2).ToList();
+                var words = line.Words.Where(w => w.Text.Length >= 3 && w.Text.All(char.IsLetterOrDigit) && w.Text.Distinct().Count() >= 2
+                    // Letters only, title-cased: the spell checker skips words with digits or all caps
+                    && (real is null || w.Text.All(char.IsLetter) && real(char.ToUpperInvariant(w.Text[0]) + w.Text[1..].ToLowerInvariant()))
+                    ).ToList();
                 int letters = words.Sum(w => w.Text.Length);
                 double turn = a - (ocr.TextAngle ?? 0);
                 if (words.Count == 1 && letters >= 4) votes.Add((Norm(turn), letters, true));
@@ -102,4 +109,55 @@ public static class AutoRotation
         });
         return SoftwareBitmap.CreateCopyFromBuffer(o.AsBuffer(), BitmapPixelFormat.Bgra8, n, n);
     }
+
+    static Func<string, bool>? Spelling(string language)
+    {
+        try
+        {
+            // COINIT_MULTITHREADED; already initialized either way is fine
+            CoInitializeEx(0, 0);
+            Marshal.ThrowExceptionForHR(CoCreateInstance(new("7AB36653-1796-484B-BDFA-E74F1DB7C1DC"), 0, 1, typeof(ISpellCheckerFactory).GUID, out var p));
+            var factory = (ISpellCheckerFactory)new StrategyBasedComWrappers().GetOrCreateObjectForComInstance(p, CreateObjectFlags.None);
+            Marshal.Release(p);
+            if (!factory.IsSupported(language)) return null;
+            var checker = factory.CreateSpellChecker(language);
+            var gate = new object();
+            return word =>
+            {
+                lock (gate)
+                {
+                    // S_OK: a misspelling; S_FALSE: none
+                    int found = checker.Check(word).Next(out var error);
+                    if (error != 0) Marshal.Release(error);
+                    return found != 0;
+                }
+            };
+        }
+        catch (Exception) { return null; }
+    }
+
+    [LibraryImport("ole32.dll")] private static partial int CoInitializeEx(nint reserved, uint coInit);
+    [LibraryImport("ole32.dll")] private static partial int CoCreateInstance(in Guid clsid, nint outer, uint context, in Guid iid, out nint obj);
+}
+
+// Only the methods used; earlier ones keep their vtable slots
+[GeneratedComInterface(StringMarshalling = StringMarshalling.Utf16), Guid("8E018A9D-2415-4677-BF08-794EA61F94BB")]
+partial interface ISpellCheckerFactory
+{
+    nint SupportedLanguages();
+    [return: MarshalAs(UnmanagedType.Bool)] bool IsSupported(string languageTag);
+    ISpellChecker CreateSpellChecker(string languageTag);
+}
+
+[GeneratedComInterface(StringMarshalling = StringMarshalling.Utf16), Guid("B6FD0B71-E2BC-4653-8D05-F197E412770B")]
+partial interface ISpellChecker
+{
+    nint LanguageTag();
+    IEnumSpellingError Check(string text);
+}
+
+[GeneratedComInterface, Guid("803E3BD4-2828-4410-8290-418D1D73C762")]
+partial interface IEnumSpellingError
+{
+    [PreserveSig] int Next(out nint error);
 }
