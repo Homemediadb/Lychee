@@ -124,9 +124,17 @@ public sealed partial class ScanView : UserControl
     {
         if (results[p - 1] is { } existing) return existing;
         var (s, b) = (scan!, p == 2 ? black : null);
-        var job = results[p - 1] = Task.Run(() => Remover.RemoveBackgrounds(s, b));
+        var progress = new Progress<Remover.Step>(step => OnStep(p, step));
+        var job = results[p - 1] = Task.Run(() => Remover.RemoveBackgrounds(s, b, progress));
         _ = job.ContinueWith(_ => UpdateState(), TaskScheduler.FromCurrentSynchronizationContext());
         return job;
+    }
+
+    void OnStep(int p, Remover.Step step)
+    {
+        if (closed || p != Pass || results[p - 1] is not { IsCompleted: false }) return;
+        SetStatus(step.Label);
+        if (showAfter && step.Picture is { } picture && step.Disc == disc) _ = Preview.ShowAsync(picture);
     }
 
     void Turn(double a)
@@ -188,7 +196,8 @@ public sealed partial class ScanView : UserControl
         if (!job.IsCompleted)
         {
             foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
-            SetStatus(p == 1 ? "Removing the background\u2026" : "Removing the background, and matting the hole and clear plastic\u2026");
+            Preview.Busy = true;
+            SetStatus("Starting\u2026");
         }
         UpdateState();
         Image result;
@@ -202,6 +211,7 @@ public sealed partial class ScanView : UserControl
         catch (Exception ex)
         {
             if (Pass != p || closed) return;
+            Preview.Busy = false;
             foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.Clear("Could not remove the background");
             if (showAfter) Describe(null, "");
             SetStatus(ex.Message);
@@ -212,8 +222,14 @@ public sealed partial class ScanView : UserControl
         if (showAfter) Describe(result);
         Preview.FitTo(result, refit);
         Preview.Highlight = !showAfter && DiscBar.Items.Count > 1;
-        Shown.Auto ??= AutoRotate(result, Shown);
+        var auto = Shown.Auto ??= AutoRotate(result, Shown);
+        Preview.Busy = !auto.IsCompleted;
+        if (Preview.Busy && Settings.Current.AutoRotation) SetStatus(DiscBar.Items.Count > 1 ? $"Disc {d + 1} of {DiscBar.Items.Count}: auto rotating\u2026" : "Auto rotating\u2026");
         await Task.WhenAll((showAfter ? Previews : Backdrops.Thumbnails).Select(v => v.ShowAsync(result)));
+        await auto;
+        if (Pass != p || disc != d || closed) return;
+        Preview.Busy = false;
+        SetStatus("");
     }
 
     void OnViewToggle(object sender, RoutedEventArgs e) => SetView(ReferenceEquals(sender, AfterButton));

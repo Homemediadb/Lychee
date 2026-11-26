@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scans with more than one disc on them: each disc is found and gets its own result, in reading order. The app
   shows a tab for each under the scan's tab, Before framing where the chosen disc is cut from the scan; Batch
   Mode gives each disc a row under the scan's name; the command line saves `IMAGE_disc1_nobg.png` and so on.
+- Progress says each step (reading the background, finding the discs, each disc's edge, hole, background, crop
+  and auto rotation) and shows the disc as each step leaves it, on the stage and in Batch Mode's rows; the stage
+  can't be turned by hand until auto rotation is done.
 - Windows installer.
 
 [Unreleased]: https://github.com/rlaphoenix/Lychee/commits/main

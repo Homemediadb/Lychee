@@ -68,6 +68,13 @@ public sealed partial class StageView : UserControl
     }
     bool highlight;
 
+    public bool Busy
+    {
+        get => busy;
+        set => Spinner.IsActive = busy = value;
+    }
+    bool busy;
+
     public event Action<double>? Rotated;
 
     double DpiScale => XamlRoot?.RasterizationScale ?? 1;
@@ -92,7 +99,7 @@ public sealed partial class StageView : UserControl
         fullBitmap = Bitmap(fullBitmap, f);
         smallBitmap = ReferenceEquals(s, f) ? fullBitmap : Bitmap(smallBitmap, s);
         Picture.Source = null;
-        (Spinner.IsActive, Picture.Opacity, Message.Visibility) = (false, 1, Visibility.Collapsed);
+        (Spinner.IsActive, Picture.Opacity, Message.Visibility) = (busy, 1, Visibility.Collapsed);
         Frame.Visibility = Interactive ? Visibility.Visible : Visibility.Collapsed;
         ZoomBadge.Visibility = Interactive ? Visibility.Visible : Visibility.Collapsed;
         if (Interactive) ProtectedCursor = Move;
@@ -133,6 +140,7 @@ public sealed partial class StageView : UserControl
     public void Clear(string message)
     {
         version++;
+        busy = false;
         ProtectedCursor = null;
         Picture.Source = null;
         (full, small, fullBitmap, smallBitmap) = (null, null, null, null);
@@ -374,8 +382,8 @@ public sealed partial class StageView : UserControl
     {
         var point = e.GetCurrentPoint(Root);
         if (!Interactive || full is null || dragFrom is not null || turnFrom is not null) return;
-        // Turning waits for the disc's center, so Before and After turn about the same point
-        if (point.Properties.IsRightButtonPressed && reference is not null)
+        // Turning waits for the disc's center, and for the work on it to finish
+        if (point.Properties.IsRightButtonPressed && reference is not null && !Spinner.IsActive)
         {
             (turnFrom, turned) = (Bearing(point.Position), angle);
             DrawGuides();

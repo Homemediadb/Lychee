@@ -224,8 +224,14 @@ sealed class BatchRow
                 blackScan = await Task.Run(() => Image.LoadAsync(black));
                 if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
             }
-            first.Step("Removing the background\u2026");
-            var results = await Task.Run(() => Remover.RemoveBackgrounds(scan, blackScan));
+            var progress = new Progress<Remover.Step>(step =>
+            {
+                if (closing.IsCancellationRequested) return;
+                var row = step.Disc < 0 ? first : Discs(step.Discs)[step.Disc];
+                row.Step($"{step.Text}\u2026");
+                if (step.Picture is { } picture) _ = row.ShowAsync(picture);
+            });
+            var results = await Task.Run(() => Remover.RemoveBackgrounds(scan, blackScan, progress));
             (scan, blackScan) = (null, null);
             closing.ThrowIfCancellationRequested();
             Discs(results.Count);

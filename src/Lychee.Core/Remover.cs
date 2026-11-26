@@ -11,14 +11,20 @@ public static class Remover
     // Hole/disc diameter of CDs, DVDs and Blu-rays, for scans with no hole edge
     const double Hole = 15 / 120.0;
 
-    public static IReadOnlyList<Image> RemoveBackgrounds(Image rgb, Image? black = null) =>
-        [.. Mattes(rgb, black).Select(m => Trim(m.Matted, m.Outer))];
+    public sealed record Step(string Text, int Disc = -1, int Discs = 0, Image? Picture = null)
+    {
+        public string Label => Discs > 1 ? $"Disc {Disc + 1} of {Discs}: {char.ToLowerInvariant(Text[0])}{Text[1..]}\u2026" : $"{Text}\u2026";
+    }
+
+    public static IReadOnlyList<Image> RemoveBackgrounds(Image rgb, Image? black = null, IProgress<Step>? progress = null) =>
+        [.. Mattes(rgb, black, progress).Select(m => Trim(m.Matted, m.Outer))];
 
     public static (Image Matted, Ellipse Outer) Matte(Image rgb, Image? black = null) => Mattes(rgb, black).First();
 
-    public static IEnumerable<(Image Matted, Ellipse Outer)> Mattes(Image rgb, Image? black = null)
+    public static IEnumerable<(Image Matted, Ellipse Outer)> Mattes(Image rgb, Image? black = null, IProgress<Step>? progress = null)
     {
         if (rgb.Channels != 3) throw new ArgumentException("expected an RGB scan");
+        progress?.Report(new("Reading the background"));
         int w = rgb.Width, h = rgb.Height;
         var px = rgb.Pixels;
 
@@ -117,6 +123,7 @@ public static class Remover
         fromCorners = null;
 
         // 2. Outer ellipse: the discs are the round, solid shapes that aren't background
+        progress?.Report(new("Finding the discs"));
         var coarse = new List<Ellipse>();
         foreach (var seed in DiscSeeds(bgm, w, h))
         {
@@ -133,9 +140,15 @@ public static class Remover
         if (coarse.Count == 0) throw new InvalidDataException("no disc edge found");
         double Dark(int x, int y) => dark[y * w + x];
         var ordered = ReadingOrder(coarse);
+        static Image Around(Ellipse e, Image image)
+        {
+            int box = (int)Math.Ceiling(e.R * (1 + Math.Abs(e.E)) * 1.15);
+            return image.Crop((int)e.Cx - box, (int)e.Cy - box, 2 * box, 2 * box);
+        }
         for (int at = 0; at < ordered.Count; at++)
         {
             var mine = ordered[at];
+            progress?.Report(new("Finding its edge", at, ordered.Count, Around(mine, rgb)));
             var outer = mine;
             foreach (var (s0, s1) in new[] { (1.03, 0.9), (1.02, 0.98) })
             {
@@ -162,6 +175,7 @@ public static class Remover
             outer = Ellipse.Fit(dx, dy, outer);
 
             // 3. Hole (1-pass), and the lid's lighting seen through it
+            if (black is null) progress?.Report(new("Finding the hole", at, ordered.Count));
             Ellipse? hole = black is null ? FindHole(Lum, w, h, outer, t) : null;
             double[][]? lid = null;
             if (hole is { } hl)
@@ -219,6 +233,7 @@ public static class Remover
                 foreach (var o in others) if (o.Dist(x, y) / o.R < own) return true;
                 return false;
             }
+            progress?.Report(new(black is null ? "Removing the background" : "Matting with the scan over black", at, ordered.Count));
             var output = new byte[w * h * 4];
             Parallel.For(0, h, y =>
             {
@@ -268,7 +283,9 @@ public static class Remover
                             : (byte)Math.Clamp(Math.Round((cover * fg[ch] + shade * ink[ch]) / alpha), 0, 255);
                 }
             });
-            yield return (new Image(w, h, 4, output, rgb.Dpi), outer);
+            var matted = new Image(w, h, 4, output, rgb.Dpi);
+            progress?.Report(new("Cropping", at, ordered.Count, Around(mine, matted)));
+            yield return (matted, outer);
         }
     }
 

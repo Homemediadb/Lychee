@@ -89,6 +89,15 @@ public sealed class Image(int width, int height, int channels, byte[]? pixels = 
         return new Image(w, h, 4, o, Dpi) { OriginX = OriginX, OriginY = OriginY, DiscRadius = DiscRadius };
     }
 
+    public Image Crop(int x, int y, int w, int h)
+    {
+        int x0 = Math.Clamp(x, 0, Width), y0 = Math.Clamp(y, 0, Height), x1 = Math.Clamp(x + w, x0, Width), y1 = Math.Clamp(y + h, y0, Height);
+        int cw = x1 - x0, ch = y1 - y0, c = Channels;
+        var o = new byte[cw * ch * c];
+        for (int r = 0; r < ch; r++) Array.Copy(Pixels, ((y0 + r) * Width + x0) * c, o, r * cw * c, cw * c);
+        return new Image(cw, ch, c, o, Dpi) { OriginX = OriginX + x0, OriginY = OriginY + y0 };
+    }
+
     public async Task SavePngAsync(string path)
     {
         var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path));
