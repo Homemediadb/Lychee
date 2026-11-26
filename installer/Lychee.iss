@@ -1,6 +1,6 @@
 #define MyAppName       "Lychee"
 #ifndef MyAppVersion
-#define MyAppVersion    "0.1.0"
+#define MyAppVersion    "1.0.0"
 #endif
 #define MyAppId         "{B7E2C9A4-5D31-4F8E-A6C0-3E9D1F27B854}"
 #define MyAppPublisher  "rlaphoenix"

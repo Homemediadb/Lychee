@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-26
+
 ### Added
 
 - Initial release: background removal for CD, DVD and Blu-ray scans from a scan over white, with
@@ -28,4 +30,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Links to the project on GitHub (github.com/Homemediadb/Lychee): the About page links to it, its license,
   issues and third-party notices, F1 opens it, and `Lychee --help` ends with its address.
 
-[Unreleased]: https://github.com/Homemediadb/Lychee/commits/main
+[Unreleased]: https://github.com/Homemediadb/Lychee/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Homemediadb/Lychee/releases/tag/v1.0.0
