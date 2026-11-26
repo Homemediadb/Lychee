@@ -2,6 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer Padding="16,0">
+        <!-- ScrollViewer places content by its desired width: this Grid centers the capped page -->
+        <Grid>
         <StackPanel Spacing="12" MaxWidth="960" Margin="0,12">
             <StackPanel>
                 <TextBlock Text="Appearance" Style="{StaticResource SectionHeader}" />
@@ -28,5 +30,6 @@
                 </Border>
             </StackPanel>
         </StackPanel>
+        </Grid>
     </ScrollViewer>
 </UserControl>
