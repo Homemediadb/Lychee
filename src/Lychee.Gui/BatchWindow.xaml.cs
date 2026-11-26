@@ -40,8 +40,15 @@ public sealed partial class BatchWindow : Window
         Closed += (_, _) =>
         {
             run.Cancel();
+            run.Dispose();
             Settings.Changed -= ApplyTheme;
         };
+    }
+
+    void NewRun()
+    {
+        run.Dispose();
+        run = new();
     }
 
     void ApplyTheme()
@@ -126,7 +133,7 @@ public sealed partial class BatchWindow : Window
         finally { Busy(null, scans.Count); }
         if (token.IsCancellationRequested)
         {
-            if (!running) run = new();
+            if (!running) NewRun();
             if (rows.Count == 0) Empty.Visibility = Visibility.Visible;
             ShowProgress();
             return;
@@ -140,7 +147,7 @@ public sealed partial class BatchWindow : Window
             ShowProgress();
         }
         running = false;
-        if (token.IsCancellationRequested) run = new();
+        if (token.IsCancellationRequested) NewRun();
         ShowProgress();
     }
 
@@ -251,14 +258,14 @@ sealed class BatchRow
         try
         {
             first.Step("Opening\u2026");
-            Image? scan = await Task.Run(() => Image.LoadAsync(Path));
+            Image? scan = await Task.Run(() => Image.LoadAsync(Path), closing);
             first.Describe(scan, new FileInfo(Path).Length);
             await first.ShowAsync(scan);
             Image? blackScan = null;
             if (black is not null)
             {
                 first.Step("Opening the scan over black\u2026");
-                blackScan = await Task.Run(() => Image.LoadAsync(black));
+                blackScan = await Task.Run(() => Image.LoadAsync(black), closing);
                 if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
             }
             var progress = new Progress<Remover.Step>(step =>
@@ -268,7 +275,7 @@ sealed class BatchRow
                 row.Step($"{step.Text}\u2026");
                 if (step.Picture is { } picture) _ = row.ShowAsync(picture);
             });
-            var results = await Task.Run(() => Remover.RemoveBackgrounds(scan, blackScan, progress));
+            var results = await Task.Run(() => Remover.RemoveBackgrounds(scan, blackScan, progress), closing);
             (scan, blackScan) = (null, null);
             closing.ThrowIfCancellationRequested();
             Discs(results.Count);
@@ -282,12 +289,12 @@ sealed class BatchRow
                         row.Step("Auto rotating\u2026");
                         _ = row.ShowAsync(result);
                         var turned = result;
-                        result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotate(turned)));
+                        result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotate(turned)), closing);
                         closing.ThrowIfCancellationRequested();
                     }
                     var dst = OutputPath(folder, results.Count > 1 ? next + 1 : null);
                     row.Step("Saving\u2026");
-                    await Task.Run(() => result.SavePngAsync(dst));
+                    await Task.Run(() => result.SavePngAsync(dst), closing);
                     await row.SavedAsync(result, dst);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)

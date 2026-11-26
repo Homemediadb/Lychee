@@ -35,7 +35,7 @@ public sealed partial class SettingsPage : UserControl
         s.Theme = (ElementTheme)Math.Max(0, ThemeCombo.SelectedIndex);
         s.SaveSuffix = SuffixBox.Text;
         s.AutoRotation = AutoRotationSwitch.IsOn;
-        if (sender == LanguageCombo && LanguageCombo.SelectedIndex >= 0) s.OcrLanguage = languageTags[LanguageCombo.SelectedIndex];
+        if (ReferenceEquals(sender, LanguageCombo) && LanguageCombo.SelectedIndex >= 0) s.OcrLanguage = languageTags[LanguageCombo.SelectedIndex];
         s.MaxRotation = MaxRotationCombo.SelectedItem is ComboBoxItem { Tag: string t } ? double.Parse(t, System.Globalization.CultureInfo.InvariantCulture) : 180;
         FitAutoRotation();
         s.Save();

@@ -369,7 +369,7 @@ public sealed partial class ScanView : UserControl
 
     internal static async Task CopyPngAsync(byte[] png)
     {
-        var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+        using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
         await stream.WriteAsync(png.AsBuffer());
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
         package.SetData("PNG", stream.CloneStream());
