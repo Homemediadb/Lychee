@@ -4,9 +4,10 @@ public static class Cli
 {
     public const string Usage = """
         usage: Lychee IMAGE [IMAGE ...] [-b BLACK [BLACK ...]] [-o OUTDIR]
+                      [--no-auto-rotation] [--ocr-language TAG] [--max-rotation DEG]
 
         Removes the white scanner background from optical-disc scans, saving IMAGE_nobg.png
-        next to each scan (or in OUTDIR).
+        next to each scan (or in OUTDIR), turned so its print reads level (Auto Rotation).
 
           1-pass (IMAGE alone): the hole is transparent, the disc and its clear plastic opaque;
                                 the shadow is kept as translucent shading.
@@ -15,6 +16,11 @@ public static class Cli
 
           -b, --black BLACK ...  the same scans over black, in order
           -o, --outdir OUTDIR    where to save (default: next to each scan)
+          --no-auto-rotation     save each disc as scanned, unturned
+          --ocr-language TAG     the installed OCR language Auto Rotation reads the print in,
+                                 e.g. en-US or ja (default: your Windows language's)
+          --max-rotation DEG     largest turn Auto Rotation makes either way, 0-180 (default:
+                                 180, any); a larger one found leaves the disc as scanned
           -h, --help             this help
 
         Run without arguments (or not from a console) to open the app.
@@ -23,7 +29,9 @@ public static class Cli
     public static int Run(string[] args, TextWriter output, TextWriter error)
     {
         var (images, blacks) = (new List<string>(), new List<string>());
-        string? outDir = null;
+        string? outDir = null, language = null;
+        bool autoRotation = true;
+        double maxRotation = 180;
         var into = images;
         for (int i = 0; i < args.Length; i++)
         {
@@ -38,6 +46,22 @@ public static class Cli
                 case "-o" or "--outdir":
                     if (++i == args.Length) return Fail("-o needs a folder");
                     outDir = args[i];
+                    into = images;
+                    break;
+                case "--no-auto-rotation":
+                    autoRotation = false;
+                    into = images;
+                    break;
+                case "--ocr-language":
+                    if (++i == args.Length) return Fail("--ocr-language needs a language tag");
+                    var tags = AutoRotation.Languages.Select(l => l.Tag).ToList();
+                    language = tags.FirstOrDefault(t => t.Equals(args[i], StringComparison.OrdinalIgnoreCase));
+                    if (language is null) return Fail($"no OCR language {args[i]} is installed (installed: {(tags.Count > 0 ? string.Join(", ", tags) : "none")})");
+                    into = images;
+                    break;
+                case "--max-rotation":
+                    if (++i == args.Length || !double.TryParse(args[i], System.Globalization.CultureInfo.InvariantCulture, out maxRotation) || maxRotation is < 0 or > 180)
+                        return Fail("--max-rotation needs degrees from 0 to 180");
                     into = images;
                     break;
                 case var a when a.StartsWith('-') && a.Length > 1:
@@ -60,7 +84,8 @@ public static class Cli
                 var black = blacks.Count > 0 ? Image.LoadAsync(blacks[i]).GetAwaiter().GetResult() : null;
                 var dst = OutputPath(f, outDir);
                 var result = Remover.RemoveBackground(scan, black);
-                result.Rotated(AutoRotation.FindAsync(result).GetAwaiter().GetResult()).SavePngAsync(dst).GetAwaiter().GetResult();
+                if (autoRotation) result = result.Rotated(AutoRotation.FindAsync(result, language, maxRotation).GetAwaiter().GetResult());
+                result.SavePngAsync(dst).GetAwaiter().GetResult();
                 output.WriteLine($"{f} -> {dst}");
             }
             catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException

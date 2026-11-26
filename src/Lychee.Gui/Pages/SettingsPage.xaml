@@ -20,6 +20,33 @@
             </StackPanel>
 
             <StackPanel>
+                <TextBlock Text="Auto Rotation" Style="{StaticResource SectionHeader}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Turn each disc so its print reads level" />
+                                <TextBlock Style="{StaticResource Hint}" Text="Read with Windows' own OCR once the first result is ready, and in Batch Mode before saving. A disc with no print it can read stays as scanned." />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="AutoRotationSwitch" Grid.Column="1" AutomationProperties.Name="Auto Rotation" OnContent="On" OffContent="Off" MinWidth="0" Toggled="SettingChanged" />
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                            <TextBlock Text="Language of the print" VerticalAlignment="Center" />
+                            <ComboBox x:Name="LanguageCombo" Grid.Column="1" AutomationProperties.Name="Language of the print" HorizontalAlignment="Stretch" SelectionChanged="SettingChanged" />
+                            <TextBlock Grid.Row="1" Text="Largest turn" VerticalAlignment="Center" />
+                            <ComboBox x:Name="MaxRotationCombo" Grid.Row="1" Grid.Column="1" AutomationProperties.Name="Largest turn" HorizontalAlignment="Stretch" SelectionChanged="SettingChanged">
+                                <ComboBoxItem Content="Any" Tag="180" />
+                                <ComboBoxItem Content="Up to 90° either way" Tag="90" />
+                                <ComboBoxItem Content="Up to 45° either way" Tag="45" />
+                                <ComboBoxItem Content="Up to 15° either way (straighten a tilt)" Tag="15" />
+                            </ComboBox>
+                        </Grid>
+                        <TextBlock Style="{StaticResource Hint}" Text="Languages are the OCR languages installed in Windows (Settings, Time &amp; language, Language &amp; region). A larger turn than allowed leaves the disc as scanned." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel>
                 <TextBlock Text="Files" Style="{StaticResource SectionHeader}" />
                 <Border Style="{StaticResource Card}">
                     <StackPanel Spacing="4">

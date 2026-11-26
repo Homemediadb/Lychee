@@ -125,7 +125,7 @@ public sealed partial class ScanView : UserControl
     async Task AutoRotate(Image result)
     {
         double a;
-        try { a = await Task.Run(() => AutoRotation.FindAsync(result)); }
+        try { a = await Task.Run(() => Settings.Current.AutoRotate(result)); }
         catch (Exception) { return; }
         if (!closed && !turnedByHand && a != 0) Turn(a);
     }

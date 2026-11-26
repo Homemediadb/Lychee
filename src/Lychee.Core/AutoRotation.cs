@@ -17,16 +17,18 @@ public static partial class AutoRotation
     // Letters needed behind a turn, and behind its line-slope refinement
     const double MinWeight = 20, MinFine = 12;
 
-    public static async Task<double> FindAsync(Image result)
+    // Clockwise degrees in (-180, 180]; 0 when unsure or past maxTurn
+    public static async Task<double> FindAsync(Image result, string? language = null, double maxTurn = 180)
     {
         if (result.Channels != 4 || result.DiscRadius <= 0) return 0;
-        if (OcrEngine.TryCreateFromUserProfileLanguages() is not { } engine) return 0;
+        OcrEngine? Engine() => language is null ? OcrEngine.TryCreateFromUserProfileLanguages() : OcrEngine.TryCreateFromLanguage(new(language));
+        if (Engine() is not { } engine) return 0;
         // Created in the thread pool's apartment, where it's used
         var real = await Task.Run(() => Spelling(engine.RecognizerLanguage.LanguageTag));
         var votes = new System.Collections.Concurrent.ConcurrentBag<(double Angle, double Weight, bool Word)>();
         await Parallel.ForEachAsync(Enumerable.Range(0, 18).Select(i => i * 20.0), new ParallelOptions { MaxDegreeOfParallelism = 4 }, async (a, _) =>
         {
-            var ocr = await OcrEngine.TryCreateFromUserProfileLanguages()!.RecognizeAsync(Render(result, a));
+            var ocr = await Engine()!.RecognizeAsync(Render(result, a));
             foreach (var line in ocr.Lines)
             {
                 var words = line.Words.Where(w => w.Text.Length >= 3 && w.Text.All(char.IsLetterOrDigit) && w.Text.Distinct().Count() >= 2
@@ -45,8 +47,14 @@ public static partial class AutoRotation
         if (w < 2 * upsideDown) return 0;
         var lines = all.Where(v => !v.Word && Math.Abs(Diff(v.Angle, c)) <= Coarse).ToList();
         if (Cluster(lines, Fine) is var (f, fw) && fw >= MinFine) c = f;
-        return Math.Round(-Diff(0, c), 1);
+        double turn = Math.Round(-Diff(0, c), 1);
+        return Math.Abs(turn) <= maxTurn ? turn : 0;
     }
+
+    public static string? DefaultLanguage => OcrEngine.TryCreateFromUserProfileLanguages()?.RecognizerLanguage.LanguageTag;
+
+    public static IReadOnlyList<(string Tag, string Name)> Languages =>
+        [.. OcrEngine.AvailableRecognizerLanguages.Select(l => (l.LanguageTag, l.DisplayName))];
 
     static (double Angle, double Weight)? Cluster(List<(double Angle, double Weight, bool Word)> votes, double tol)
     {

@@ -299,9 +299,13 @@ sealed class BatchRow
             var result = await Task.Run(() => Remover.RemoveBackground(scan, blackScan));
             (scan, blackScan) = (null, null);
             closing.ThrowIfCancellationRequested();
-            file.Text = $"{details} · auto rotating…";
-            result = await Task.Run(async () => result.Rotated(await AutoRotation.FindAsync(result)));
-            closing.ThrowIfCancellationRequested();
+            if (Settings.Current.AutoRotation)
+            {
+                file.Text = $"{details} · auto rotating…";
+                var turned = result;
+                result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotate(turned)));
+                closing.ThrowIfCancellationRequested();
+            }
             var dst = OutputPath(folder);
             file.Text = "Saving…";
             await Task.Run(() => result.SavePngAsync(dst));

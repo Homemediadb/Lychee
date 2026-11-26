@@ -15,6 +15,12 @@ public sealed class Settings
     public bool HideMattingTips { get; set; }
     public string SaveSuffix { get; set; } = "_nobg";
     public string BatchFolder { get; set; } = "";
+    public bool AutoRotation { get; set; } = true;
+    public string OcrLanguage { get; set; } = "";
+    public double MaxRotation { get; set; } = 180;
+
+    public Task<double> AutoRotate(Lychee.Image result) =>
+        AutoRotation ? Lychee.AutoRotation.FindAsync(result, OcrLanguage.Length > 0 ? OcrLanguage : null, MaxRotation) : Task.FromResult(0.0);
 
     public static Settings Current { get; } = Load();
 
