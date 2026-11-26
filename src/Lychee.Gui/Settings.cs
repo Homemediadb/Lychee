@@ -4,7 +4,20 @@ using Microsoft.UI.Xaml;
 
 namespace Lychee.Gui;
 
-public enum Backdrop { Transparent, Checkerboard, Black, White, Red, Yellow, Green, Cyan, Blue, Magenta, Plasma }
+public enum Backdrop
+{
+    Transparent,
+    Checkerboard,
+    Black,
+    White,
+    Red,
+    Yellow,
+    Green,
+    Cyan,
+    Blue,
+    Magenta,
+    Plasma,
+}
 
 public sealed class Settings
 {
@@ -20,13 +33,16 @@ public sealed class Settings
     public double MaxRotation { get; set; } = 180;
 
     public Task<double> AutoRotateAsync(Lychee.Image result) =>
-        AutoRotation ? Lychee.AutoRotation.FindAsync(result, OcrLanguage.Length > 0 ? OcrLanguage : null, MaxRotation) : Task.FromResult(0.0);
+        AutoRotation
+            ? Lychee.AutoRotation.FindAsync(result, OcrLanguage.Length > 0 ? OcrLanguage : null, MaxRotation)
+            : Task.FromResult(0.0);
 
     public static Settings Current { get; } = Load();
 
     public void FitBackdropTo(ElementTheme theme)
     {
-        if (theme == BackdropTheme) return;
+        if (theme == BackdropTheme)
+            return;
         BackdropTheme = theme;
         Backdrop = (theme, Backdrop) switch
         {
@@ -41,12 +57,23 @@ public sealed class Settings
 
     public static event Action? Changed;
 
-    static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lychee", "settings.json");
+    static string FilePath =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Lychee",
+            "settings.json"
+        );
 
     static Settings Load()
     {
-        try { return JsonSerializer.Deserialize(File.ReadAllText(FilePath), SettingsJson.Default.Settings) ?? new(); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { return new(); }
+        try
+        {
+            return JsonSerializer.Deserialize(File.ReadAllText(FilePath), SettingsJson.Default.Settings) ?? new();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return new();
+        }
     }
 
     public void Save()

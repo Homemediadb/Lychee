@@ -14,13 +14,17 @@ $InstallerDir = Join-Path $Root 'installer'
 
 function Step([string]$m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
 
-function Remove-RepoPath([string]$path) {
+function Remove-RepoPath {
+    [CmdletBinding(SupportsShouldProcess)]
+    param([string]$path)
     $full = [IO.Path]::GetFullPath($path)
     $rootFull = [IO.Path]::GetFullPath($Root)
     if (-not $full.TrimEnd('\').StartsWith($rootFull.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
         throw "refusing to delete '$full' (outside the repo)"
     }
-    if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force }
+    if ((Test-Path -LiteralPath $full) -and $PSCmdlet.ShouldProcess($full, 'Delete')) {
+        Remove-Item -LiteralPath $full -Recurse -Force
+    }
 }
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()

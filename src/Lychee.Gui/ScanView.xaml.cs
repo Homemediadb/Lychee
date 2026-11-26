@@ -9,11 +9,16 @@ namespace Lychee.Gui;
 public sealed partial class ScanView : UserControl
 {
     readonly MainWindow owner;
-    Image? scan, black;
+    Image? scan,
+        black;
     string? blackPath;
     readonly string? pairedBlack;
     readonly Task<IReadOnlyList<Image>>?[] results = new Task<IReadOnlyList<Image>>?[2];
-    bool showAfter = true, opening = true, choosingBlack, closed, matting;
+    bool showAfter = true,
+        opening = true,
+        choosingBlack,
+        closed,
+        matting;
     int disc;
     readonly List<DiscTurn> turns = [];
     IEnumerable<Controls.StageView> Previews => Backdrops.Thumbnails.Prepend(Preview);
@@ -29,7 +34,8 @@ public sealed partial class ScanView : UserControl
 
     DiscTurn TurnOf(int d)
     {
-        while (turns.Count <= d) turns.Add(new());
+        while (turns.Count <= d)
+            turns.Add(new());
         return turns[d];
     }
 
@@ -66,13 +72,15 @@ public sealed partial class ScanView : UserControl
         }
     }
 
-    public bool IsBusy => opening || choosingBlack || SaveState == SaveState.Saving || results.Any(r => r is { IsCompleted: false });
+    public bool IsBusy =>
+        opening || choosingBlack || SaveState == SaveState.Saving || results.Any(r => r is { IsCompleted: false });
 
     public event Action? StateChanged;
 
     void UpdateState()
     {
-        bool loaded = scan is not null, free = loaded && !choosingBlack && SaveState != SaveState.Saving;
+        bool loaded = scan is not null,
+            free = loaded && !choosingBlack && SaveState != SaveState.Saving;
         int pass = Pass;
         BeforeButton.IsEnabled = AfterButton.IsEnabled = loaded;
         (BeforeButton.IsChecked, AfterButton.IsChecked) = (!showAfter, showAfter);
@@ -91,7 +99,8 @@ public sealed partial class ScanView : UserControl
 
     public async Task OpenAsync()
     {
-        foreach (var v in Previews) v.ShowWorking();
+        foreach (var v in Previews)
+            v.ShowWorking();
         SetStatus("Opening\u2026");
         try
         {
@@ -99,7 +108,8 @@ public sealed partial class ScanView : UserControl
         }
         catch (Exception ex)
         {
-            foreach (var v in Previews) v.Clear("Could not open this scan");
+            foreach (var v in Previews)
+                v.Clear("Could not open this scan");
             Describe(null, "");
             SetStatus(ex.Message);
             return;
@@ -109,8 +119,10 @@ public sealed partial class ScanView : UserControl
             opening = false;
             UpdateState();
         }
-        if (closed) return;
-        if (pairedBlack is { } b) await OpenBlackAsync(b);
+        if (closed)
+            return;
+        if (pairedBlack is { } b)
+            await OpenBlackAsync(b);
         await RefreshAsync();
     }
 
@@ -122,7 +134,8 @@ public sealed partial class ScanView : UserControl
 
     Task<IReadOnlyList<Image>> ResultsAsync(int p)
     {
-        if (results[p - 1] is { } existing) return existing;
+        if (results[p - 1] is { } existing)
+            return existing;
         var (s, b) = (scan!, p == 2 ? black : null);
         var progress = new Progress<Remover.Step>(step => OnStep(p, step));
         var job = results[p - 1] = Task.Run(() => Remover.RemoveBackgrounds(s, b, progress));
@@ -132,26 +145,39 @@ public sealed partial class ScanView : UserControl
 
     void OnStep(int p, Remover.Step step)
     {
-        if (closed || p != Pass || results[p - 1] is not { IsCompleted: false }) return;
+        if (closed || p != Pass || results[p - 1] is not { IsCompleted: false })
+            return;
         SetStatus(step.Label);
-        if (showAfter && step.Picture is { } picture && step.Disc == disc) _ = Preview.ShowAsync(picture);
+        if (showAfter && step.Picture is { } picture && step.Disc == disc)
+            _ = Preview.ShowAsync(picture);
     }
 
     void Turn(double a)
     {
         Shown.Angle = a;
-        foreach (var v in Previews) v.Angle = a;
-        if (showAfter && results[Pass - 1] is { IsCompletedSuccessfully: true, Result: var all }) Describe(all[disc]);
+        foreach (var v in Previews)
+            v.Angle = a;
+        if (showAfter && results[Pass - 1] is { IsCompletedSuccessfully: true, Result: var all })
+            Describe(all[disc]);
     }
 
     async Task AutoRotateAsync(Image result, DiscTurn turn)
     {
         double a;
-        try { a = await Task.Run(() => Settings.Current.AutoRotateAsync(result)); }
-        catch (Exception) { return; }
-        if (closed || turn.ByHand || a == 0) return;
-        if (ReferenceEquals(turn, Shown)) Turn(a);
-        else turn.Angle = a;
+        try
+        {
+            a = await Task.Run(() => Settings.Current.AutoRotateAsync(result));
+        }
+        catch (Exception)
+        {
+            return;
+        }
+        if (closed || turn.ByHand || a == 0)
+            return;
+        if (ReferenceEquals(turn, Shown))
+            Turn(a);
+        else
+            turn.Angle = a;
     }
 
     async Task<Image> FinalAsync(int p, int d)
@@ -165,7 +191,8 @@ public sealed partial class ScanView : UserControl
 
     void ShowDiscs(int count)
     {
-        if (DiscBar.Items.Count == count || count < 2) return;
+        if (DiscBar.Items.Count == count || count < 2)
+            return;
         DiscBar.Items.Clear();
         for (int d = 0; d < count; d++)
         {
@@ -180,33 +207,49 @@ public sealed partial class ScanView : UserControl
     async void OnDiscSelected(SelectorBar sender, SelectorBarSelectionChangedEventArgs e)
     {
         int d = sender.SelectedItem is { } item ? sender.Items.IndexOf(item) : -1;
-        if (d < 0 || d == disc) return;
+        if (d < 0 || d == disc)
+            return;
         disc = d;
-        foreach (var v in Previews) v.Angle = Shown.Angle;
+        foreach (var v in Previews)
+            v.Angle = Shown.Angle;
         await RefreshAsync(refit: true);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1849", Justification = "Result is read only once the task has completed")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Performance",
+        "CA1849",
+        Justification = "Result is read only once the task has completed"
+    )]
     async Task RefreshAsync(bool refit = false)
     {
-        if (scan is not { } opened) return;
-        int p = Pass, d = disc;
-        if (!showAfter) _ = Preview.ShowAsync(opened);
+        if (scan is not { } opened)
+            return;
+        int p = Pass,
+            d = disc;
+        if (!showAfter)
+            _ = Preview.ShowAsync(opened);
         var job = ResultsAsync(p);
-        Describe(!showAfter ? opened : job is { IsCompletedSuccessfully: true, Result: var ready } ? ready[d] : null);
-        if (!job.IsCompleted) ShowWorking();
+        Describe(
+            !showAfter ? opened
+            : job is { IsCompletedSuccessfully: true, Result: var ready } ? ready[d]
+            : null
+        );
+        if (!job.IsCompleted)
+            ShowWorking();
         UpdateState();
         Image result;
         try
         {
             var all = await job;
-            if (Pass != p || disc != d || closed) return;
+            if (Pass != p || disc != d || closed)
+                return;
             ShowDiscs(all.Count);
             result = all[d];
         }
         catch (Exception ex)
         {
-            if (Pass == p && !closed) ShowFailure(ex.Message);
+            if (Pass == p && !closed)
+                ShowFailure(ex.Message);
             return;
         }
         await ShowResultAsync(result, p, d, refit);
@@ -214,7 +257,8 @@ public sealed partial class ScanView : UserControl
 
     void ShowWorking()
     {
-        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
+        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails)
+            v.ShowWorking();
         Preview.Busy = true;
         SetStatus("Starting\u2026");
     }
@@ -222,8 +266,10 @@ public sealed partial class ScanView : UserControl
     void ShowFailure(string message)
     {
         Preview.Busy = false;
-        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.Clear("Could not remove the background");
-        if (showAfter) Describe(null, "");
+        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails)
+            v.Clear("Could not remove the background");
+        if (showAfter)
+            Describe(null, "");
         SetStatus(message);
         UpdateState();
     }
@@ -231,15 +277,25 @@ public sealed partial class ScanView : UserControl
     async Task ShowResultAsync(Image result, int p, int d, bool refit)
     {
         SetStatus("");
-        if (showAfter) Describe(result);
+        if (showAfter)
+            Describe(result);
         Preview.FitTo(result, refit);
         Preview.Highlight = !showAfter && DiscBar.Items.Count > 1;
         var auto = Shown.Auto ??= AutoRotateAsync(result, Shown);
         Preview.Busy = !auto.IsCompleted;
-        if (Preview.Busy && Settings.Current.AutoRotation) SetStatus(DiscBar.Items.Count > 1 ? $"Disc {d + 1} of {DiscBar.Items.Count}: auto rotating\u2026" : "Auto rotating\u2026");
+        if (Preview.Busy && Settings.Current.AutoRotation)
+        {
+            SetStatus(
+                DiscBar.Items.Count > 1
+                    ? $"Disc {d + 1} of {DiscBar.Items.Count}: auto rotating\u2026"
+                    : "Auto rotating\u2026"
+            );
+        }
+
         await Task.WhenAll((showAfter ? Previews : Backdrops.Thumbnails).Select(v => v.ShowAsync(result)));
         await auto;
-        if (Pass != p || disc != d || closed) return;
+        if (Pass != p || disc != d || closed)
+            return;
         Preview.Busy = false;
         SetStatus("");
     }
@@ -248,15 +304,18 @@ public sealed partial class ScanView : UserControl
 
     public void ToggleView()
     {
-        if (BeforeButton.IsEnabled) SetView(!showAfter);
+        if (BeforeButton.IsEnabled)
+            SetView(!showAfter);
     }
 
     void SetView(bool after)
     {
         bool changed = after != showAfter;
         showAfter = after;
-        if (changed) _ = RefreshAsync();
-        else UpdateState();
+        if (changed)
+            _ = RefreshAsync();
+        else
+            UpdateState();
     }
 
     async void OnMattingBoxClick(object sender, RoutedEventArgs e)
@@ -267,30 +326,45 @@ public sealed partial class ScanView : UserControl
 
     async void OnMattingClick(object sender, RoutedEventArgs e)
     {
-        if (!await MainWindow.ShowTipAsync(XamlRoot, "Matting", MattingAdvice, "Choose the black scan",
-                () => Settings.Current.HideMattingTips, hide => Settings.Current.HideMattingTips = hide))
+        if (
+            !await MainWindow.ShowTipAsync(
+                XamlRoot,
+                "Matting",
+                MattingAdvice,
+                "Choose the black scan",
+                () => Settings.Current.HideMattingTips,
+                hide => Settings.Current.HideMattingTips = hide
+            )
+        )
+        {
             return;
-        if (await ChooseBlackAsync()) await RefreshAsync();
+        }
+
+        if (await ChooseBlackAsync())
+            await RefreshAsync();
     }
 
     const string MattingAdvice =
-        "Matting uses a second scan of the same disc, with black paper (or anything black and matte) laid over it in " +
-        "place of the white lid, so the disc is scanned over black.\n\n" +
-        "Don't move the disc between the two scans, and scan both with exactly the same settings and area. Lychee " +
-        "compares the two pixel by pixel: what changes between white and black is how see-through each part is. The " +
-        "hole and the clear plastic ring round it then come out with their real transparency and color, instead of " +
-        "the clear plastic being opaque.\n\n" +
-        "Next, choose that scan over black. The box beside Matte turns it on and off afterwards, without choosing " +
-        "it again.";
+        "Matting uses a second scan of the same disc, with black paper (or anything black and matte) laid over it in "
+        + "place of the white lid, so the disc is scanned over black.\n\n"
+        + "Don't move the disc between the two scans, and scan both with exactly the same settings and area. Lychee "
+        + "compares the two pixel by pixel: what changes between white and black is how see-through each part is. The "
+        + "hole and the clear plastic ring round it then come out with their real transparency and color, instead of "
+        + "the clear plastic being opaque.\n\n"
+        + "Next, choose that scan over black. The box beside Matte turns it on and off afterwards, without choosing "
+        + "it again.";
 
-    async Task<bool> ChooseBlackAsync() => await owner.PickScansAsync(multiple: false) is [var path] && await OpenBlackAsync(path);
+    async Task<bool> ChooseBlackAsync() =>
+        await owner.PickScansAsync(multiple: false) is [var path] && await OpenBlackAsync(path);
 
     async Task<bool> OpenBlackAsync(string path)
     {
-        if (scan is null) return false;
+        if (scan is null)
+            return false;
         choosingBlack = true;
         UpdateState();
-        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails) v.ShowWorking();
+        foreach (var v in showAfter ? Previews : Backdrops.Thumbnails)
+            v.ShowWorking();
         SetStatus("Opening the black scan\u2026");
         try
         {
@@ -298,7 +372,9 @@ public sealed partial class ScanView : UserControl
             if (opened.Width != scan.Width || opened.Height != scan.Height)
             {
                 ShowCurrent();
-                SetStatus($"{System.IO.Path.GetFileName(path)} is {opened.Width:N0} \u00D7 {opened.Height:N0} px, not {scan.Width:N0} \u00D7 {scan.Height:N0} like this scan: scan both the same way, without moving the disc.");
+                SetStatus(
+                    $"{System.IO.Path.GetFileName(path)} is {opened.Width:N0} \u00D7 {opened.Height:N0} px, not {scan.Width:N0} \u00D7 {scan.Height:N0} like this scan: scan both the same way, without moving the disc."
+                );
                 return false;
             }
             (black, blackPath, results[1], matting) = (opened, path, null, true);
@@ -320,14 +396,16 @@ public sealed partial class ScanView : UserControl
 
     void ShowCurrent()
     {
-        if (results[Pass - 1] is { IsCompleted: true }) _ = RefreshAsync();
+        if (results[Pass - 1] is { IsCompleted: true })
+            _ = RefreshAsync();
     }
 
     public void Copy() => OnCopy(this, new RoutedEventArgs());
 
     async void OnCopy(object sender, RoutedEventArgs e)
     {
-        if (scan is null || !CopyButton.IsEnabled) return;
+        if (scan is null || !CopyButton.IsEnabled)
+            return;
         var (p, d) = (Pass, disc);
         CopyButton.IsEnabled = false;
         try
@@ -350,10 +428,13 @@ public sealed partial class ScanView : UserControl
     void Describe(Image? image, string none = "Processing\u2026")
     {
         int v = ++described;
-        SizeText.Text = image is null ? none : $"{image.Width:N0} \u00D7 {image.Height:N0} px \u00B7 {image.Width * (double)image.Height / 1e6:0.#} MP";
+        SizeText.Text = image is null
+            ? none
+            : $"{image.Width:N0} \u00D7 {image.Height:N0} px \u00B7 {image.Width * (double)image.Height / 1e6:0.#} MP";
         DpiText.Text = image is null ? "" : Dpi(image);
         DpiText.Visibility = image is null ? Visibility.Collapsed : Visibility.Visible;
-        if (image is not null) _ = AddFileSizeAsync(image, v);
+        if (image is not null)
+            _ = AddFileSizeAsync(image, v);
     }
 
     int described;
@@ -364,19 +445,28 @@ public sealed partial class ScanView : UserControl
         try
         {
             long bytes;
-            if (ReferenceEquals(image, scan)) bytes = new FileInfo(Path).Length;
+            if (ReferenceEquals(image, scan))
+            {
+                bytes = new FileInfo(Path).Length;
+            }
             else
             {
                 if (encoded is not { } e || !ReferenceEquals(e.Result, image) || e.Angle != Shown.Angle)
                 {
                     var a = Shown.Angle;
-                    encoded = e = (image, a, Task.Run(async () => (long)(await image.Rotated(a).EncodePngAsync()).Length));
+                    encoded = e = (
+                        image,
+                        a,
+                        Task.Run(async () => (long)(await image.Rotated(a).EncodePngAsync()).Length)
+                    );
                 }
                 bytes = await e.Bytes;
             }
-            if (v == described) DpiText.Text = $"{Dpi(image)} \u00B7 {FileSize(bytes)}";
+            if (v == described)
+                DpiText.Text = $"{Dpi(image)} \u00B7 {FileSize(bytes)}";
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
+        catch (Exception e)
+            when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
         {
             // The size is left out when it can't be worked out
         }
@@ -394,12 +484,13 @@ public sealed partial class ScanView : UserControl
         Windows.ApplicationModel.DataTransfer.Clipboard.Flush();
     }
 
-    internal static string FileSize(long bytes) => bytes switch
-    {
-        >= 1 << 30 => $"{bytes / (double)(1 << 30):0.0} GB",
-        >= 1 << 20 => $"{bytes / (double)(1 << 20):0.0} MB",
-        _ => $"{bytes / 1024.0:0} KB",
-    };
+    internal static string FileSize(long bytes) =>
+        bytes switch
+        {
+            >= 1 << 30 => $"{bytes / (double)(1 << 30):0.0} GB",
+            >= 1 << 20 => $"{bytes / (double)(1 << 20):0.0} MB",
+            _ => $"{bytes / 1024.0:0} KB",
+        };
 
     internal static string Dpi(Image image) => Dpi(image.Dpi);
 
@@ -414,7 +505,8 @@ public sealed partial class ScanView : UserControl
 
     async void OnSave(object sender, RoutedEventArgs e)
     {
-        if (scan is null || !SaveButton.IsEnabled) return;
+        if (scan is null || !SaveButton.IsEnabled)
+            return;
         int discs = DiscBar.Items.Count;
         var picker = new FileSavePicker(owner.AppWindow.Id)
         {
@@ -422,7 +514,8 @@ public sealed partial class ScanView : UserControl
             SuggestedFolder = System.IO.Path.GetDirectoryName(Path),
         };
         picker.FileTypeChoices.Add("PNG image", [".png"]);
-        if (await picker.PickSaveFileAsync() is not { } file) return;
+        if (await picker.PickSaveFileAsync() is not { } file)
+            return;
 
         var (p, d) = (Pass, disc);
         var turn = TurnOf(d);
@@ -430,7 +523,10 @@ public sealed partial class ScanView : UserControl
         var cancel = SaveOverlay.ShowProgress(file.Path);
         try
         {
-            SaveOverlay.Report(results[p - 1] is { IsCompleted: true } ? "Writing the PNG\u2026" : "Removing the background\u2026", 0);
+            SaveOverlay.Report(
+                results[p - 1] is { IsCompleted: true } ? "Writing the PNG\u2026" : "Removing the background\u2026",
+                0
+            );
             var result = await FinalAsync(p, d);
             cancel.ThrowIfCancellationRequested();
             SaveOverlay.Report("Writing the PNG\u2026", 0);
@@ -442,15 +538,14 @@ public sealed partial class ScanView : UserControl
                 throw new OperationCanceledException();
             }
             var facts = new List<(string, string?)>();
-            if (discs > 1) facts.Add(("Disc", $"{d + 1} of {discs}"));
-            facts.AddRange(
-            [
-                ("Resolution", $"{result.Width:N0} \u00D7 {result.Height:N0} px"),
-                ("DPI", result.Dpi is double dpi ? $"{dpi:0.##}" : "Not recorded"),
-                ("File size", FileSize(new FileInfo(file.Path).Length)),
-            ]);
+            if (discs > 1)
+                facts.Add(("Disc", $"{d + 1} of {discs}"));
+            facts.Add(("Resolution", $"{result.Width:N0} \u00D7 {result.Height:N0} px"));
+            facts.Add(("DPI", result.Dpi is double dpi ? $"{dpi:0.##}" : "Not recorded"));
+            facts.Add(("File size", FileSize(new FileInfo(file.Path).Length)));
             facts.Add(("Matting", p == 2 ? System.IO.Path.GetFileName(blackPath) : "Off"));
-            if (turn.Angle != 0) facts.Add(("Rotation", $"{turn.Angle:0.#}\u00B0"));
+            if (turn.Angle != 0)
+                facts.Add(("Rotation", $"{turn.Angle:0.#}\u00B0"));
             SaveOverlay.ShowDone(file.Path, [.. facts]);
             SaveState = SaveState.Saved;
         }
@@ -466,4 +561,10 @@ public sealed partial class ScanView : UserControl
     }
 }
 
-public enum SaveState { None, Saving, Saved, Failed }
+public enum SaveState
+{
+    None,
+    Saving,
+    Saved,
+    Failed,
+}

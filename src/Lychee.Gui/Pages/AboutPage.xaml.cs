@@ -29,7 +29,14 @@ public sealed partial class AboutPage : UserControl
             var row = new Grid { ColumnSpacing = 16 };
             row.ColumnDefinitions.Add(new ColumnDefinition());
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            row.Children.Add(new TextBlock { Text = description, VerticalAlignment = VerticalAlignment.Center, Style = (Style)Application.Current.Resources["Hint"] });
+            row.Children.Add(
+                new TextBlock
+                {
+                    Text = description,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Style = (Style)Application.Current.Resources["Hint"],
+                }
+            );
             var key = new Border
             {
                 Child = new TextBlock { Text = keys, Style = (Style)Resources["Mono"] },
@@ -43,13 +50,22 @@ public sealed partial class AboutPage : UserControl
 
     public void Load()
     {
-        if (loaded) return;
+        if (loaded)
+            return;
         loaded = true;
         var assembly = Assembly.GetExecutingAssembly();
         var version = assembly.GetName().Version;
         VersionText.Text = version is null ? "v?" : $"v{version.Major}.{version.Minor}.{version.Build}";
         DotnetText.Text = Environment.Version.ToString();
-        if (assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "WindowsAppSDKVersion")?.Value is { } sdk)
+        if (
+            assembly
+                .GetCustomAttributes<AssemblyMetadataAttribute>()
+                .FirstOrDefault(a => a.Key == "WindowsAppSDKVersion")
+                ?.Value is
+            { } sdk
+        )
+        {
             WinAppSdkText.Text = sdk;
+        }
     }
 }

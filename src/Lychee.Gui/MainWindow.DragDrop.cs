@@ -12,7 +12,8 @@ public sealed partial class MainWindow
     bool DragArrived(List<string> paths)
     {
         dragLeft?.Stop();
-        if (DropZone.IsShown) return dropAccepted;
+        if (DropZone.IsShown)
+            return dropAccepted;
         int scans = paths.Count(IsScan);
         dropAccepted = scans > 0;
         DropZone.Show(scans, paths.Count - scans);
@@ -39,17 +40,21 @@ public sealed partial class MainWindow
     async void OnDragEnter(object sender, DragEventArgs e)
     {
         dragLeft?.Stop();
-        if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+            return;
         var deferral = e.GetDeferral();
         var items = await e.DataView.GetStorageItemsAsync();
-        e.AcceptedOperation = DragArrived([.. items.OfType<StorageFile>().Select(f => f.Path)]) ? DataPackageOperation.Copy : DataPackageOperation.None;
+        e.AcceptedOperation = DragArrived([.. items.OfType<StorageFile>().Select(f => f.Path)])
+            ? DataPackageOperation.Copy
+            : DataPackageOperation.None;
         deferral.Complete();
     }
 
     void OnDragOver(object sender, DragEventArgs e)
     {
         dragLeft?.Stop();
-        if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+            return;
         e.AcceptedOperation = dropAccepted ? DataPackageOperation.Copy : DataPackageOperation.None;
         e.DragUIOverride.Caption = dropAccepted ? "Open" : "Not an image";
     }
@@ -58,8 +63,9 @@ public sealed partial class MainWindow
 
     async void OnDrop(object sender, DragEventArgs e)
     {
-        if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
-        var paths = (await e.DataView.GetStorageItemsAsync()).OfType<StorageFile>().Select(f => f.Path).ToList();
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+            return;
+        var paths = (await e.DataView.GetStorageItemsAsync()).OfType<StorageFile>().Select(f => f.Path).ToArray();
         dragLeft?.Stop();
         DropZone.Hide();
         OpenPaired(paths);

@@ -1,6 +1,5 @@
-<!-- Merged per theme, so StaticResources resolve against that theme -->
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+﻿<!--  Merged per theme, so StaticResources resolve against that theme  -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <SolidColorBrush x:Key="SelectorBarItemPillFill" Color="Transparent" />
     <StaticResource x:Key="SelectorBarItemBackgroundSelected" ResourceKey="SubtleFillColorSecondaryBrush" />
     <StaticResource x:Key="SelectorBarItemBackgroundPointerOver" ResourceKey="SubtleFillColorTertiaryBrush" />

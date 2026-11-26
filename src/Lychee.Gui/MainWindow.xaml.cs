@@ -1,8 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Microsoft.UI;
-using Microsoft.UI.Input;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -35,10 +35,21 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         SizeWindow();
-        squareLock = new SquareLock(WindowNative.GetWindowHandle(this), StageChrome, () => DispatcherQueue.TryEnqueue(SquareActive));
-        AppWindow.Changed += (_, e) => { if (e.DidPresenterChange) DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SquareActive); };
+        squareLock = new SquareLock(WindowNative.GetWindowHandle(this), StageChrome, () =>
+            DispatcherQueue.TryEnqueue(SquareActive)
+        );
+        AppWindow.Changed += (_, e) =>
+        {
+            if (e.DidPresenterChange)
+                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, SquareActive);
+        };
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
-        Root.ActualThemeChanged += (_, _) => { SyncCaptionColors(); HighlightTitleButtons(); Settings.Current.FitBackdropTo(Root.ActualTheme); };
+        Root.ActualThemeChanged += (_, _) =>
+        {
+            SyncCaptionColors();
+            HighlightTitleButtons();
+            Settings.Current.FitBackdropTo(Root.ActualTheme);
+        };
         Root.Loaded += OnLoaded;
         InputNonClientPointerSource.GetForWindowId(AppWindow.Id).CaptionTapped += OnCaptionTapped;
         Root.SizeChanged += (_, _) => FitTabs();
@@ -50,7 +61,11 @@ public sealed partial class MainWindow : Window
         ApplyTheme();
         Settings.Changed += ApplyTheme;
         // The items mark taps handled
-        TitleButtons.AddHandler(UIElement.TappedEvent, new TappedEventHandler(OnTitleButtonTapped), handledEventsToo: true);
+        TitleButtons.AddHandler(
+            UIElement.TappedEvent,
+            new TappedEventHandler(OnTitleButtonTapped),
+            handledEventsToo: true
+        );
         ClickCursor.Attach(Root);
         Closed += OnClosed;
     }
@@ -60,7 +75,12 @@ public sealed partial class MainWindow : Window
         double scale = GetDpiForWindow(WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new SizeInt32((int)((820 - 49 - FileBar + SidePanel) * scale), (int)(820 * scale)));
         if (AppWindow.Presenter is OverlappedPresenter presenter)
-            (presenter.PreferredMinimumWidth, presenter.PreferredMinimumHeight) = ((int)(640 * scale), (int)(480 * scale));
+        {
+            (presenter.PreferredMinimumWidth, presenter.PreferredMinimumHeight) = (
+                (int)(640 * scale),
+                (int)(480 * scale)
+            );
+        }
     }
 
     async void OnLoaded(object sender, RoutedEventArgs e)
@@ -71,8 +91,14 @@ public sealed partial class MainWindow : Window
         SquareEmpty();
         Settings.Current.FitBackdropTo(Root.ActualTheme);
         Root.XamlRoot.Changed += (_, _) => FitCaptionGap();
-        await ShowTipAsync(Root.XamlRoot, "For the best results", ScanAdvice, null,
-            () => Settings.Current.HideScanTips, hide => Settings.Current.HideScanTips = hide);
+        await ShowTipAsync(
+            Root.XamlRoot,
+            "For the best results",
+            ScanAdvice,
+            null,
+            () => Settings.Current.HideScanTips,
+            hide => Settings.Current.HideScanTips = hide
+        );
     }
 
     void AddPages(params UIElement[] pages)
@@ -86,7 +112,8 @@ public sealed partial class MainWindow : Window
 
     void OnClosed(object sender, WindowEventArgs args)
     {
-        foreach (var view in Views) view.Close();
+        foreach (var view in Views)
+            view.Close();
         batch?.Close();
         squareLock.Dispose();
     }
@@ -95,9 +122,10 @@ public sealed partial class MainWindow : Window
 
     IEnumerable<ScanView> Views => Tabs.TabItems.Cast<TabViewItem>().Select(t => (ScanView)t.Tag);
 
-    public static bool IsScan(string path) => ScanTypes.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
+    public static bool IsScan(string path) =>
+        ScanTypes.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
-    public async void OpenPaired(IReadOnlyList<string> paths)
+    public async void OpenPaired(string[] paths)
     {
         var scans = paths.Where(IsScan).Select(Path.GetFullPath).ToList();
         if (scans.Count < 2)
@@ -107,9 +135,18 @@ public sealed partial class MainWindow : Window
         }
         Welcome.Busy = true;
         List<(Pairing.Scan White, Pairing.Scan Black)> pairs;
-        try { pairs = (await Task.Run(() => Pairing.MatchFilesAsync(scans))).Pairs; }
-        catch { pairs = []; }
-        finally { Welcome.Busy = false; }
+        try
+        {
+            pairs = (await Task.Run(() => Pairing.MatchFilesAsync(scans))).Pairs;
+        }
+        catch
+        {
+            pairs = [];
+        }
+        finally
+        {
+            Welcome.Busy = false;
+        }
         var blacks = pairs.ToDictionary(p => p.White.Path, p => p.Black.Path, StringComparer.OrdinalIgnoreCase);
         var paired = blacks.Values.ToHashSet(StringComparer.OrdinalIgnoreCase);
         Open(scans.Where(s => !paired.Contains(s)), blacks);
@@ -120,15 +157,38 @@ public sealed partial class MainWindow : Window
         foreach (var path in paths.Where(IsScan))
         {
             var full = Path.GetFullPath(path);
-            var existing = Tabs.TabItems.Cast<TabViewItem>().FirstOrDefault(t => string.Equals(((ScanView)t.Tag).Path, full, StringComparison.OrdinalIgnoreCase));
-            if (existing is not null) { Tabs.SelectedItem = existing; continue; }
+            var existing = Tabs
+                .TabItems.Cast<TabViewItem>()
+                .FirstOrDefault(t => string.Equals(((ScanView)t.Tag).Path, full, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                Tabs.SelectedItem = existing;
+                continue;
+            }
 
             var view = new ScanView(this, full, blacks?.GetValueOrDefault(full));
-            var spinner = new ProgressRing { Width = 14, Height = 14, MinWidth = 0, MinHeight = 0, IsActive = true, IsTabStop = false };
+            var spinner = new ProgressRing
+            {
+                Width = 14,
+                Height = 14,
+                MinWidth = 0,
+                MinHeight = 0,
+                IsActive = true,
+                IsTabStop = false,
+            };
             var name = new TextBlock { Text = Path.GetFileName(full), TextTrimming = TextTrimming.CharacterEllipsis };
             Grid.SetColumn(name, 1);
             var outcome = new FontIcon { FontSize = 14, Visibility = Visibility.Collapsed };
-            var header = new Grid { ColumnSpacing = 8, ColumnDefinitions = { new() { Width = GridLength.Auto }, new() }, Children = { spinner, outcome, name } };
+            var header = new Grid
+            {
+                ColumnSpacing = 8,
+                ColumnDefinitions =
+                {
+                    new() { Width = GridLength.Auto },
+                    new(),
+                },
+                Children = { spinner, outcome, name },
+            };
             var tab = new TabViewItem { Header = header, Tag = view };
             AutomationProperties.SetName(tab, Path.GetFileName(full));
             ToolTipService.SetToolTip(tab, full);
@@ -137,10 +197,14 @@ public sealed partial class MainWindow : Window
                 var state = view.SaveState;
                 spinner.IsActive = view.IsBusy;
                 spinner.Visibility = spinner.IsActive ? Visibility.Visible : Visibility.Collapsed;
-                (outcome.Glyph, outcome.Foreground) = state == SaveState.Failed
-                    ? ("\uEA39", (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"])
-                    : ("\uE930", (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"]);
-                outcome.Visibility = !view.IsBusy && state is SaveState.Saved or SaveState.Failed ? Visibility.Visible : Visibility.Collapsed;
+                (outcome.Glyph, outcome.Foreground) =
+                    state == SaveState.Failed
+                        ? ("\uEA39", (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"])
+                        : ("\uE930", (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"]);
+                outcome.Visibility =
+                    !view.IsBusy && state is SaveState.Saved or SaveState.Failed
+                        ? Visibility.Visible
+                        : Visibility.Collapsed;
                 tab.IsClosable = state != SaveState.Saving;
             };
             if (!squared)
@@ -156,7 +220,8 @@ public sealed partial class MainWindow : Window
             tab.Loaded += (_, _) =>
             {
                 RoundAllCorners(tab);
-                if (tab.IsSelected) tab.StartBringIntoView();
+                if (tab.IsSelected)
+                    tab.StartBringIntoView();
             };
             PagesHost.Children.Add(view);
             Tabs.TabItems.Add(tab);
@@ -171,25 +236,36 @@ public sealed partial class MainWindow : Window
     bool squared;
 
     // Copied from ScanView's layout; the first scan squares the stage exactly if they drift
-    const double FileBar = 53, SidePanel = 181;
+    const double FileBar = 53,
+        SidePanel = 181;
 
     void SquareEmpty()
     {
-        if (!squared) SquareStage(new(Root.ActualWidth - SidePanel, Root.ActualHeight - Root.RowDefinitions[0].ActualHeight - FileBar));
+        if (!squared)
+        {
+            SquareStage(
+                new(Root.ActualWidth - SidePanel, Root.ActualHeight - Root.RowDefinitions[0].ActualHeight - FileBar)
+            );
+        }
     }
+
     readonly SquareLock squareLock;
 
     Windows.Foundation.Size? StageChrome() =>
-        Active is { StageSpace.ActualWidth: > 0 } view ? new(Root.ActualWidth - view.StageSpace.ActualWidth, Root.ActualHeight - view.StageSpace.ActualHeight) : null;
+        Active is { StageSpace.ActualWidth: > 0 } view
+            ? new(Root.ActualWidth - view.StageSpace.ActualWidth, Root.ActualHeight - view.StageSpace.ActualHeight)
+            : null;
 
     void SquareActive()
     {
-        if (Active is { StageSpace.ActualWidth: > 0 } view) SquareStage(new(view.StageSpace.ActualWidth, view.StageSpace.ActualHeight));
+        if (Active is { StageSpace.ActualWidth: > 0 } view)
+            SquareStage(new(view.StageSpace.ActualWidth, view.StageSpace.ActualHeight));
     }
 
     void SquareStage(Windows.Foundation.Size space)
     {
-        if (AppWindow.Presenter is not OverlappedPresenter { State: OverlappedPresenterState.Restored }) return;
+        if (AppWindow.Presenter is not OverlappedPresenter { State: OverlappedPresenterState.Restored })
+            return;
         double scale = Root.XamlRoot.RasterizationScale;
         int width = AppWindow.Size.Width + (int)Math.Round((space.Height - space.Width) * scale);
         AppWindow.Resize(new SizeInt32(width, AppWindow.Size.Height));
@@ -207,12 +283,14 @@ public sealed partial class MainWindow : Window
         batch.Activate();
     }
 
-    public async Task<IReadOnlyList<string>> PickScansAsync(bool multiple)
+    public async Task<string[]> PickScansAsync(bool multiple)
     {
         var picker = new FileOpenPicker();
-        foreach (var type in ScanTypes) picker.FileTypeFilter.Add(type);
+        foreach (var type in ScanTypes)
+            picker.FileTypeFilter.Add(type);
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
-        if (multiple) return [.. (await picker.PickMultipleFilesAsync()).Select(f => f.Path)];
+        if (multiple)
+            return [.. (await picker.PickMultipleFilesAsync()).Select(f => f.Path)];
         return await picker.PickSingleFileAsync() is { } file ? [file.Path] : [];
     }
 
@@ -225,7 +303,8 @@ public sealed partial class MainWindow : Window
     void CloseTab(TabViewItem tab)
     {
         var view = (ScanView)tab.Tag;
-        if (view.SaveState == SaveState.Saving) return;
+        if (view.SaveState == SaveState.Saving)
+            return;
         view.Close();
         PagesHost.Children.Remove(view);
         Tabs.TabItems.Remove(tab);
@@ -234,14 +313,20 @@ public sealed partial class MainWindow : Window
 
     void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (Tabs.SelectedItem is not null) ClosePageState();
+        if (Tabs.SelectedItem is not null)
+            ClosePageState();
         ShowSelected();
     }
 
     void ShowSelected()
     {
         var selected = (Tabs.SelectedItem as TabViewItem)?.Tag;
-        foreach (var view in Views) view.Visibility = page is null && ReferenceEquals(view, selected) ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var view in Views)
+        {
+            view.Visibility =
+                page is null && ReferenceEquals(view, selected) ? Visibility.Visible : Visibility.Collapsed;
+        }
+
         bool empty = Tabs.TabItems.Count == 0;
         Welcome.Visibility = empty && page is null ? Visibility.Visible : Visibility.Collapsed;
         aboutPage.Visibility = page == "about" ? Visibility.Visible : Visibility.Collapsed;
@@ -251,11 +336,14 @@ public sealed partial class MainWindow : Window
 
     void OnTitleButtonSelected(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        if (sender.SelectedItem is not { Tag: string tag }) return;
+        if (sender.SelectedItem is not { Tag: string tag })
+            return;
         if (tag == "kofi")
         {
             // Changing the selection inside its handler re-raises it
-            DispatcherQueue.TryEnqueue(() => sender.SelectedItem = sender.Items.FirstOrDefault(i => (string)i.Tag == page));
+            DispatcherQueue.TryEnqueue(() =>
+                sender.SelectedItem = sender.Items.FirstOrDefault(i => (string)i.Tag == page)
+            );
             return;
         }
         pageSelectedAt = Environment.TickCount64;
@@ -264,7 +352,11 @@ public sealed partial class MainWindow : Window
 
     void OnTitleButtonTapped(object sender, TappedRoutedEventArgs e)
     {
-        for (var element = e.OriginalSource as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
+        for (
+            var element = e.OriginalSource as DependencyObject;
+            element is not null;
+            element = VisualTreeHelper.GetParent(element)
+        )
         {
             if (element is SelectorBarItem { Tag: "kofi" })
             {
@@ -272,32 +364,65 @@ public sealed partial class MainWindow : Window
                 return;
             }
         }
-        if (page is not null && Environment.TickCount64 - pageSelectedAt > 300 && (string?)TitleButtons.SelectedItem?.Tag == page) ShowPage(null);
+        if (
+            page is not null
+            && Environment.TickCount64 - pageSelectedAt > 300
+            && (string?)TitleButtons.SelectedItem?.Tag == page
+        )
+        {
+            ShowPage(null);
+        }
     }
 
     const string ScanAdvice =
-        "Lychee works from the scan exactly as the scanner made it, so:\n\n" +
-        "\u2022 Scan raw and lossless: save as PNG (or BMP), not JPEG, at the resolution you want to keep.\n" +
-        "\u2022 Don't adjust the color levels, brightness, contrast or gamma, and turn off color correction, auto " +
-        "enhancement, sharpening and dust removal. Lychee reads the white point and the scanner's uneven lighting " +
-        "from the background itself, and these change it.\n" +
-        "\u2022 Don't crop to the edge of the disc. Leave a good margin of background all round it, corners included: " +
-        "Lychee measures the background there, and the disc's shadow needs the room to be kept.\n" +
-        "\u2022 Close the lid, or lay white paper over the disc, so it's scanned over plain white.";
+        "Lychee works from the scan exactly as the scanner made it, so:\n\n"
+        + "\u2022 Scan raw and lossless: save as PNG (or BMP), not JPEG, at the resolution you want to keep.\n"
+        + "\u2022 Don't adjust the color levels, brightness, contrast or gamma, and turn off color correction, auto "
+        + "enhancement, sharpening and dust removal. Lychee reads the white point and the scanner's uneven lighting "
+        + "from the background itself, and these change it.\n"
+        + "\u2022 Don't crop to the edge of the disc. Leave a good margin of background all round it, corners included: "
+        + "Lychee measures the background there, and the disc's shadow needs the room to be kept.\n"
+        + "\u2022 Close the lid, or lay white paper over the disc, so it's scanned over plain white.";
 
-    internal static async Task<bool> ShowTipAsync(XamlRoot root, string title, string text, string? action, Func<bool> hidden, Action<bool> hide)
+    internal static async Task<bool> ShowTipAsync(
+        XamlRoot root,
+        string title,
+        string text,
+        string? action,
+        Func<bool> hidden,
+        Action<bool> hide
+    )
     {
-        if (hidden()) return true;
+        if (hidden())
+            return true;
         var box = new CheckBox { Content = "Don't show this again", Margin = new Thickness(0, 12, 0, 0) };
         var dialog = new ContentDialog
         {
             XamlRoot = root,
             Title = title,
-            Content = new StackPanel { Children = { new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap }, box } },
+            Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
+                    box,
+                },
+            },
             RequestedTheme = (root.Content as FrameworkElement)?.ActualTheme ?? ElementTheme.Default,
         };
-        if (action is null) (dialog.CloseButtonText, dialog.DefaultButton) = ("OK", ContentDialogButton.Close);
-        else (dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.DefaultButton) = (action, "Cancel", ContentDialogButton.Primary);
+        if (action is null)
+        {
+            (dialog.CloseButtonText, dialog.DefaultButton) = ("OK", ContentDialogButton.Close);
+        }
+        else
+        {
+            (dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.DefaultButton) = (
+                action,
+                "Cancel",
+                ContentDialogButton.Primary
+            );
+        }
+
         bool go = await dialog.ShowAsync() == ContentDialogResult.Primary || action is null;
         if (box.IsChecked == true)
         {
@@ -307,39 +432,48 @@ public sealed partial class MainWindow : Window
         return go;
     }
 
-    FrameworkElement? brandIcon, brandName;
+    FrameworkElement? brandIcon,
+        brandName;
 
     void StyleBrand()
     {
         (brandIcon, brandName) = (Find(AppTitleBar, "PART_Icon"), Find(AppTitleBar, "PART_TitleText"));
-        if (brandName is TextBlock name) (name.FontSize, name.FontWeight) = (14, Microsoft.UI.Text.FontWeights.SemiBold);
+        if (brandName is TextBlock name)
+            (name.FontSize, name.FontWeight) = (14, Microsoft.UI.Text.FontWeights.SemiBold);
         FitTabs();
     }
 
-    double BrandRight => brandName is { } n ? n.TransformToVisual(Root).TransformPoint(new(n.ActualWidth + n.Margin.Right, 0)).X : 0;
+    double BrandRight =>
+        brandName is { } n ? n.TransformToVisual(Root).TransformPoint(new(n.ActualWidth + n.Margin.Right, 0)).X : 0;
 
     void OnCaptionTapped(InputNonClientPointerSource sender, NonClientCaptionTappedEventArgs e)
     {
-        if (brandIcon is null) return;
+        if (brandIcon is null)
+            return;
         // The tap is in physical pixels
         double scale = Root.XamlRoot.RasterizationScale;
-        double left = brandIcon.TransformToVisual(Root).TransformPoint(default).X, x = e.Point.X / scale;
-        if (x >= left && x <= BrandRight) ShowPage(null);
+        double left = brandIcon.TransformToVisual(Root).TransformPoint(default).X,
+            x = e.Point.X / scale;
+        if (x >= left && x <= BrandRight)
+            ShowPage(null);
     }
 
     void ShowPage(string? tag)
     {
         if (tag is not null)
         {
-            if (Tabs.SelectedItem is TabViewItem tab) lastTab = tab;
+            if (Tabs.SelectedItem is TabViewItem tab)
+                lastTab = tab;
             page = tag;
             Tabs.SelectedItem = null;
-            if (tag == "about") aboutPage.Load();
+            if (tag == "about")
+                aboutPage.Load();
         }
         else
         {
             ClosePageState();
-            Tabs.SelectedItem = lastTab is not null && Tabs.TabItems.Contains(lastTab) ? lastTab : Tabs.TabItems.FirstOrDefault();
+            Tabs.SelectedItem =
+                lastTab is not null && Tabs.TabItems.Contains(lastTab) ? lastTab : Tabs.TabItems.FirstOrDefault();
         }
         HighlightTitleButtons();
         ShowSelected();
@@ -358,22 +492,28 @@ public sealed partial class MainWindow : Window
     internal static void HighlightSelected(SelectorBar bar, Brush fill)
     {
         foreach (var item in bar.Items)
-            if (item == bar.SelectedItem) item.Background = fill;
-            else item.ClearValue(Control.BackgroundProperty);
+        {
+            if (item == bar.SelectedItem)
+                item.Background = fill;
+            else
+                item.ClearValue(Control.BackgroundProperty);
+        }
     }
 
     void ApplyTheme() => Root.RequestedTheme = Settings.Current.Theme;
 
     void FitTabs()
     {
-        if (Root.XamlRoot is null) return;
+        if (Root.XamlRoot is null)
+            return;
         double captions = AppWindow.TitleBar.RightInset / Root.XamlRoot.RasterizationScale;
         Tabs.MaxWidth = Math.Max(0, Root.ActualWidth - BrandRight - TitleButtons.ActualWidth - captions);
     }
 
     static void RoundAllCorners(TabViewItem tab)
     {
-        if (Find(tab, "TabContainer") is Grid container) container.CornerRadius = tab.CornerRadius;
+        if (Find(tab, "TabContainer") is Grid container)
+            container.CornerRadius = tab.CornerRadius;
     }
 
     static FrameworkElement? Find(DependencyObject parent, string name)
@@ -381,8 +521,10 @@ public sealed partial class MainWindow : Window
         for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is FrameworkElement { Name: var n } e && n == name) return e;
-            if (Find(child, name) is { } found) return found;
+            if (child is FrameworkElement { Name: var n } e && n == name)
+                return e;
+            if (Find(child, name) is { } found)
+                return found;
         }
         return null;
     }
@@ -402,5 +544,6 @@ public sealed partial class MainWindow : Window
         AppWindow.TitleBar.ButtonInactiveForegroundColor = fg;
     }
 
-    [LibraryImport("user32.dll")] private static partial uint GetDpiForWindow(nint hwnd);
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint hwnd);
 }

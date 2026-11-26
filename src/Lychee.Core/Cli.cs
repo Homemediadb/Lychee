@@ -27,7 +27,14 @@ public static class Cli
         Run without arguments (or not from a console) to open the app.
         """;
 
-    sealed record Options(List<string> Images, List<string> Blacks, string? OutDir, bool AutoRotation, string? Language, double MaxRotation);
+    sealed record Options(
+        List<string> Images,
+        List<string> Blacks,
+        string? OutDir,
+        bool AutoRotation,
+        string? Language,
+        double MaxRotation
+    );
 
     public static int Run(string[] args, TextWriter output, TextWriter error)
     {
@@ -44,14 +51,16 @@ public static class Cli
             return 2;
         }
         bool ok = true;
-        for (int i = 0; i < options.Images.Count; i++) ok &= Process(options, i, output, error);
+        for (int i = 0; i < options.Images.Count; i++)
+            ok &= Process(options, i, output, error);
         return ok ? 0 : 1;
     }
 
     static (Options? Options, string? Problem) Parse(string[] args)
     {
         var (images, blacks) = (new List<string>(), new List<string>());
-        string? outDir = null, language = null;
+        string? outDir = null,
+            language = null;
         bool autoRotation = true;
         double maxRotation = 180;
         var into = images;
@@ -67,17 +76,27 @@ public static class Cli
                     into = blacks;
                     continue;
                 case "-o" or "--outdir":
-                    if (!queue.TryDequeue(out outDir)) problem = "-o needs a folder";
+                    if (!queue.TryDequeue(out outDir))
+                        problem = "-o needs a folder";
                     break;
                 case "--no-auto-rotation":
                     autoRotation = false;
                     break;
                 case "--ocr-language":
-                    problem = queue.TryDequeue(out var tag) ? Installed(tag, out language) : "--ocr-language needs a language tag";
+                    problem = queue.TryDequeue(out var tag)
+                        ? Installed(tag, out language)
+                        : "--ocr-language needs a language tag";
                     break;
                 case "--max-rotation":
-                    if (!queue.TryDequeue(out var degrees) || !double.TryParse(degrees, System.Globalization.CultureInfo.InvariantCulture, out maxRotation) || maxRotation is < 0 or > 180)
+                    if (
+                        !queue.TryDequeue(out var degrees)
+                        || !double.TryParse(degrees, System.Globalization.CultureInfo.InvariantCulture, out maxRotation)
+                        || maxRotation is < 0 or > 180
+                    )
+                    {
                         problem = "--max-rotation needs degrees from 0 to 180";
+                    }
+
                     break;
                 case var a when a.StartsWith('-') && a.Length > 1:
                     problem = $"unknown option {a}";
@@ -86,11 +105,14 @@ public static class Cli
                     into.Add(arg);
                     continue;
             }
-            if (problem is not null) return (null, problem);
+            if (problem is not null)
+                return (null, problem);
             into = images;
         }
-        if (images.Count == 0) return (null, "no images given");
-        if (blacks.Count > 0 && blacks.Count != images.Count) return (null, "give one --black scan per image");
+        if (images.Count == 0)
+            return (null, "no images given");
+        if (blacks.Count > 0 && blacks.Count != images.Count)
+            return (null, "give one --black scan per image");
         return (new(images, blacks, outDir, autoRotation, language, maxRotation), null);
     }
 
@@ -98,7 +120,9 @@ public static class Cli
     {
         var tags = AutoRotation.Languages.Select(l => l.Tag).ToList();
         language = tags.Find(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase));
-        return language is null ? $"no OCR language {tag} is installed (installed: {(tags.Count > 0 ? string.Join(", ", tags) : "none")})" : null;
+        return language is null
+            ? $"no OCR language {tag} is installed (installed: {(tags.Count > 0 ? string.Join(", ", tags) : "none")})"
+            : null;
     }
 
     static bool Process(Options options, int i, TextWriter output, TextWriter error)
@@ -113,14 +137,27 @@ public static class Cli
             {
                 var result = results[d];
                 var dst = OutputPath(f, options.OutDir, disc: results.Count > 1 ? d + 1 : null);
-                if (options.AutoRotation) result = result.Rotated(AutoRotation.FindAsync(result, options.Language, options.MaxRotation).GetAwaiter().GetResult());
+                if (options.AutoRotation)
+                {
+                    result = result.Rotated(
+                        AutoRotation.FindAsync(result, options.Language, options.MaxRotation).GetAwaiter().GetResult()
+                    );
+                }
+
                 result.SavePngAsync(dst).GetAwaiter().GetResult();
                 output.WriteLine($"{f} -> {dst}");
             }
             return true;
         }
-        catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException
-                                      or NotSupportedException or System.Runtime.InteropServices.COMException)
+        catch (Exception e)
+            when (e
+                    is InvalidDataException
+                        or IOException
+                        or UnauthorizedAccessException
+                        or ArgumentException
+                        or NotSupportedException
+                        or System.Runtime.InteropServices.COMException
+            )
         {
             error.WriteLine($"{f}: skipped, {e.Message}");
             return false;

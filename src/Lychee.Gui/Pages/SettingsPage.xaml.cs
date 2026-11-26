@@ -20,9 +20,15 @@ public sealed partial class SettingsPage : UserControl
             languageTags.Add(tag);
             LanguageCombo.Items.Add(name);
         }
-        var chosen = Settings.Current.OcrLanguage.Length > 0 ? Settings.Current.OcrLanguage : Lychee.AutoRotation.DefaultLanguage ?? "";
+        var chosen =
+            Settings.Current.OcrLanguage.Length > 0
+                ? Settings.Current.OcrLanguage
+                : Lychee.AutoRotation.DefaultLanguage ?? "";
         LanguageCombo.SelectedIndex = languageTags.FindIndex(t => t.Equals(chosen, StringComparison.OrdinalIgnoreCase));
-        var turns = MaxRotationCombo.Items.Cast<ComboBoxItem>().Select(i => double.Parse((string)i.Tag, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        var turns = MaxRotationCombo
+            .Items.Cast<ComboBoxItem>()
+            .Select(i => double.Parse((string)i.Tag, System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
         MaxRotationCombo.SelectedIndex = Math.Max(0, turns.IndexOf(Settings.Current.MaxRotation));
         FitAutoRotation();
         loading = false;
@@ -30,13 +36,17 @@ public sealed partial class SettingsPage : UserControl
 
     void SettingChanged(object sender, RoutedEventArgs e)
     {
-        if (loading) return;
+        if (loading)
+            return;
         var s = Settings.Current;
         s.Theme = (ElementTheme)Math.Max(0, ThemeCombo.SelectedIndex);
         s.SaveSuffix = SuffixBox.Text;
         s.AutoRotation = AutoRotationSwitch.IsOn;
-        if (ReferenceEquals(sender, LanguageCombo) && LanguageCombo.SelectedIndex >= 0) s.OcrLanguage = languageTags[LanguageCombo.SelectedIndex];
-        s.MaxRotation = MaxRotationCombo.SelectedItem is ComboBoxItem { Tag: string t } ? double.Parse(t, System.Globalization.CultureInfo.InvariantCulture) : 180;
+        if (ReferenceEquals(sender, LanguageCombo) && LanguageCombo.SelectedIndex >= 0)
+            s.OcrLanguage = languageTags[LanguageCombo.SelectedIndex];
+        s.MaxRotation = MaxRotationCombo.SelectedItem is ComboBoxItem { Tag: string t }
+            ? double.Parse(t, System.Globalization.CultureInfo.InvariantCulture)
+            : 180;
         FitAutoRotation();
         s.Save();
     }

@@ -8,12 +8,21 @@ using WinRT.Interop;
 
 namespace Lychee.Gui;
 
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "Disposed when the window closes; a Window can't be IDisposable")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Design",
+    "CA1001",
+    Justification = "Disposed when the window closes; a Window can't be IDisposable"
+)]
 public sealed partial class PreviewWindow : Window
 {
-    readonly Grid root, space;
+    readonly Grid root,
+        space;
     readonly SquareLock squareLock;
-    readonly Controls.StageView stage = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+    readonly Controls.StageView stage = new()
+    {
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+    };
     readonly Controls.BackdropList backdrops = new() { Margin = new Thickness(16) };
 
     public PreviewWindow(string path)
@@ -21,7 +30,14 @@ public sealed partial class PreviewWindow : Window
         Title = Path.GetFileName(path);
         SystemBackdrop = new MicaBackdrop();
         ExtendsContentIntoTitleBar = true;
-        var titleBar = new TitleBar { Title = Title, IconSource = new ImageIconSource { ImageSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("ms-appx:///Assets/icon.png")) } };
+        var titleBar = new TitleBar
+        {
+            Title = Title,
+            IconSource = new ImageIconSource
+            {
+                ImageSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("ms-appx:///Assets/icon.png")),
+            },
+        };
         var divider = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"];
         space = new Grid { Children = { stage } };
         space.SizeChanged += (_, e) => stage.Width = stage.Height = Math.Min(e.NewSize.Width, e.NewSize.Height);
@@ -33,8 +49,20 @@ public sealed partial class PreviewWindow : Window
         space.SizeChanged += Once;
         var body = new Grid
         {
-            ColumnDefinitions = { new(), new() { Width = new GridLength(180) } },
-            Children = { new Border { BorderBrush = divider, BorderThickness = new Thickness(0, 0, 1, 0), Child = space } },
+            ColumnDefinitions =
+            {
+                new(),
+                new() { Width = new GridLength(180) },
+            },
+            Children =
+            {
+                new Border
+                {
+                    BorderBrush = divider,
+                    BorderThickness = new Thickness(0, 0, 1, 0),
+                    Child = space,
+                },
+            },
         };
         var side = new ScrollViewer { Content = backdrops };
         Grid.SetColumn(side, 1);
@@ -43,18 +71,43 @@ public sealed partial class PreviewWindow : Window
         root = new Grid
         {
             Background = new SolidColorBrush(Colors.Transparent),
-            RowDefinitions = { new() { Height = GridLength.Auto }, new() },
-            Children = { new Border { BorderBrush = divider, BorderThickness = new Thickness(0, 0, 0, 1), Child = titleBar }, body },
+            RowDefinitions =
+            {
+                new() { Height = GridLength.Auto },
+                new(),
+            },
+            Children =
+            {
+                new Border
+                {
+                    BorderBrush = divider,
+                    BorderThickness = new Thickness(0, 0, 0, 1),
+                    Child = titleBar,
+                },
+                body,
+            },
         };
         Content = root;
         SetTitleBar(titleBar);
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
         double scale = GetDpiForWindow(WindowNative.GetWindowHandle(this)) / 96.0;
         AppWindow.Resize(new SizeInt32((int)(1000 * scale), (int)(860 * scale)));
-        squareLock = new SquareLock(WindowNative.GetWindowHandle(this),
-            () => space.ActualWidth > 0 ? new Windows.Foundation.Size(root.ActualWidth - space.ActualWidth, root.ActualHeight - space.ActualHeight) : null,
-            () => DispatcherQueue.TryEnqueue(Square));
-        AppWindow.Changed += (_, e) => { if (e.DidPresenterChange) DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, Square); };
+        squareLock = new SquareLock(
+            WindowNative.GetWindowHandle(this),
+            () =>
+                space.ActualWidth > 0
+                    ? new Windows.Foundation.Size(
+                        root.ActualWidth - space.ActualWidth,
+                        root.ActualHeight - space.ActualHeight
+                    )
+                    : null,
+            () => DispatcherQueue.TryEnqueue(Square)
+        );
+        AppWindow.Changed += (_, e) =>
+        {
+            if (e.DidPresenterChange)
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, Square);
+        };
         ClickCursor.Attach(root);
         ApplyTheme();
         Settings.Changed += ApplyTheme;
@@ -70,14 +123,16 @@ public sealed partial class PreviewWindow : Window
     async Task ShowAsync(string path, TitleBar titleBar)
     {
         var views = backdrops.Thumbnails.Prepend(stage).ToList();
-        foreach (var v in views) v.ShowWorking();
+        foreach (var v in views)
+            v.ShowWorking();
         try
         {
             var result = await Task.Run(() => Image.LoadAsync(path, alpha: true));
             var saving = Task.CompletedTask;
             stage.Rotated += a =>
             {
-                foreach (var t in backdrops.Thumbnails) t.Angle = a;
+                foreach (var t in backdrops.Thumbnails)
+                    t.Angle = a;
                 saving = TurnAsync(saving, a);
             };
             async Task TurnAsync(Task before, double a)
@@ -99,15 +154,32 @@ public sealed partial class PreviewWindow : Window
         }
         catch (Exception e)
         {
-            foreach (var v in views) v.Clear($"Could not open it: {e.Message}");
+            foreach (var v in views)
+                v.Clear($"Could not open it: {e.Message}");
         }
     }
 
     void Square()
     {
-        if (AppWindow.Presenter is not Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Restored } || space.ActualWidth <= 0) return;
+        if (
+            AppWindow.Presenter
+                is not Microsoft.UI.Windowing.OverlappedPresenter
+                {
+                    State: Microsoft.UI.Windowing.OverlappedPresenterState.Restored
+                }
+            || space.ActualWidth <= 0
+        )
+        {
+            return;
+        }
+
         double scale = root.XamlRoot.RasterizationScale;
-        AppWindow.Resize(new SizeInt32(AppWindow.Size.Width + (int)Math.Round((space.ActualHeight - space.ActualWidth) * scale), AppWindow.Size.Height));
+        AppWindow.Resize(
+            new SizeInt32(
+                AppWindow.Size.Width + (int)Math.Round((space.ActualHeight - space.ActualWidth) * scale),
+                AppWindow.Size.Height
+            )
+        );
     }
 
     void ApplyTheme()
@@ -123,5 +195,6 @@ public sealed partial class PreviewWindow : Window
         (AppWindow.TitleBar.ButtonForegroundColor, AppWindow.TitleBar.ButtonInactiveForegroundColor) = (fg, fg);
     }
 
-    [LibraryImport("user32.dll")] private static partial uint GetDpiForWindow(nint hwnd);
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint hwnd);
 }

@@ -1,54 +1,123 @@
-<UserControl x:Class="Lychee.Gui.ScanView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:Lychee.Gui.Controls">
+﻿<UserControl
+    x:Class="Lychee.Gui.ScanView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Lychee.Gui.Controls">
     <Grid RowDefinitions="Auto,*">
-        <Grid BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1" ColumnDefinitions="*,180">
-            <Grid x:Name="FileBar" Padding="12,10" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <ToggleButton x:Name="BeforeButton" AutomationProperties.Name="Before" MinWidth="88" CornerRadius="4,0,0,4" Click="OnViewToggle"
-                                  ToolTipService.ToolTip="The scan as opened (B)">
+        <Grid
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,0,0,1"
+            ColumnDefinitions="*,180">
+            <Grid
+                x:Name="FileBar"
+                Padding="12,10"
+                ColumnDefinitions="Auto,*,Auto"
+                ColumnSpacing="12">
+                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                    <ToggleButton
+                        x:Name="BeforeButton"
+                        MinWidth="88"
+                        AutomationProperties.Name="Before"
+                        Click="OnViewToggle"
+                        CornerRadius="4,0,0,4"
+                        ToolTipService.ToolTip="The scan as opened (B)">
                         <TextBlock Text="Before" />
                     </ToggleButton>
-                    <ToggleButton x:Name="AfterButton" AutomationProperties.Name="After" MinWidth="88" CornerRadius="0,4,4,0" IsChecked="True" Click="OnViewToggle"
-                                  ToolTipService.ToolTip="With the background removed, exactly as saved (B)">
+                    <ToggleButton
+                        x:Name="AfterButton"
+                        MinWidth="88"
+                        AutomationProperties.Name="After"
+                        Click="OnViewToggle"
+                        CornerRadius="0,4,4,0"
+                        IsChecked="True"
+                        ToolTipService.ToolTip="With the background removed, exactly as saved (B)">
                         <TextBlock Text="After" />
                     </ToggleButton>
                 </StackPanel>
-                <StackPanel x:Name="InfoPanel" Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock x:Name="SizeText" Text="Processing…" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True" />
-                    <TextBlock x:Name="DpiText" Visibility="Collapsed" Style="{StaticResource CaptionTextBlockStyle}" IsTextSelectionEnabled="True"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <StackPanel
+                    x:Name="InfoPanel"
+                    Grid.Column="1"
+                    VerticalAlignment="Center">
+                    <TextBlock
+                        x:Name="SizeText"
+                        IsTextSelectionEnabled="True"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="Processing…" />
+                    <TextBlock
+                        x:Name="DpiText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        IsTextSelectionEnabled="True"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Visibility="Collapsed" />
                 </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <CheckBox x:Name="MattingBox" MinWidth="0" Padding="0" Click="OnMattingBoxClick" AutomationProperties.Name="Use matting"
-                              ToolTipService.ToolTip="Use the black scan: on, the hole and clear plastic are matted; off, the white scan alone" />
-                    <Button x:Name="MattingButton" Click="OnMattingClick" AutomationProperties.Name="Matte">
+                <StackPanel
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <CheckBox
+                        x:Name="MattingBox"
+                        MinWidth="0"
+                        Padding="0"
+                        AutomationProperties.Name="Use matting"
+                        Click="OnMattingBoxClick"
+                        ToolTipService.ToolTip="Use the black scan: on, the hole and clear plastic are matted; off, the white scan alone" />
+                    <Button
+                        x:Name="MattingButton"
+                        AutomationProperties.Name="Matte"
+                        Click="OnMattingClick">
                         <ToolTipService.ToolTip>
                             <ToolTip>
-                                <TextBlock x:Name="MattingTip" TextWrapping="Wrap" MaxWidth="320" />
+                                <TextBlock
+                                    x:Name="MattingTip"
+                                    MaxWidth="320"
+                                    TextWrapping="Wrap" />
                             </ToolTip>
                         </ToolTipService.ToolTip>
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE8B9;" FontSize="14" />
+                            <FontIcon FontSize="14" Glyph="&#xE8B9;" />
                             <TextBlock Text="Matte" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
             </Grid>
-            <Border Grid.Column="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0" Padding="16,10">
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" VerticalAlignment="Center">
-                    <Button x:Name="CopyButton" Padding="9,8" AutomationProperties.Name="Copy" Click="OnCopy"
-                            ToolTipService.ToolTip="Copy the result to the clipboard, with transparency (Ctrl+Shift+C)">
+            <Border
+                Grid.Column="1"
+                Padding="16,10"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="1,0,0,0">
+                <Grid
+                    VerticalAlignment="Center"
+                    ColumnDefinitions="Auto,*"
+                    ColumnSpacing="8">
+                    <Button
+                        x:Name="CopyButton"
+                        Padding="9,8"
+                        AutomationProperties.Name="Copy"
+                        Click="OnCopy"
+                        ToolTipService.ToolTip="Copy the result to the clipboard, with transparency (Ctrl+Shift+C)">
                         <Grid>
-                            <FontIcon x:Name="CopyIcon" Glyph="&#xE8C8;" FontSize="14" />
-                            <FontIcon x:Name="CopiedIcon" Glyph="&#xE73E;" FontSize="14" Visibility="Collapsed" />
+                            <FontIcon
+                                x:Name="CopyIcon"
+                                FontSize="14"
+                                Glyph="&#xE8C8;" />
+                            <FontIcon
+                                x:Name="CopiedIcon"
+                                FontSize="14"
+                                Glyph="&#xE73E;"
+                                Visibility="Collapsed" />
                         </Grid>
                     </Button>
-                    <Button x:Name="SaveButton" Grid.Column="1" HorizontalAlignment="Stretch" AutomationProperties.Name="Export As" Click="OnSave" Style="{StaticResource AccentButtonStyle}"
-                            ToolTipService.ToolTip="Export the result as a PNG with transparency (Ctrl+S)">
+                    <Button
+                        x:Name="SaveButton"
+                        Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        AutomationProperties.Name="Export As"
+                        Click="OnSave"
+                        Style="{StaticResource AccentButtonStyle}"
+                        ToolTipService.ToolTip="Export the result as a PNG with transparency (Ctrl+S)">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon Glyph="&#xE74E;" FontSize="14" />
+                            <FontIcon FontSize="14" Glyph="&#xE74E;" />
                             <TextBlock Text="Export As" />
                         </StackPanel>
                     </Button>
@@ -59,12 +128,26 @@
         <Grid Grid.Row="1" ColumnDefinitions="*,180">
             <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
                 <Grid x:Name="StageArea" SizeChanged="OnStageAreaSizeChanged">
-                    <Grid x:Name="StageBox" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Grid
+                        x:Name="StageBox"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
                         <controls:StageView x:Name="Preview" />
-                        <Border x:Name="DiscTabs" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,0,0" Padding="4,0"
-                                CornerRadius="4" BorderThickness="1" Visibility="Collapsed"
-                                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-                            <SelectorBar x:Name="DiscBar" SelectionChanged="OnDiscSelected" AutomationProperties.Name="Discs on this scan" />
+                        <Border
+                            x:Name="DiscTabs"
+                            Margin="0,8,0,0"
+                            Padding="4,0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Visibility="Collapsed">
+                            <SelectorBar
+                                x:Name="DiscBar"
+                                AutomationProperties.Name="Discs on this scan"
+                                SelectionChanged="OnDiscSelected" />
                         </Border>
                     </Grid>
                 </Grid>

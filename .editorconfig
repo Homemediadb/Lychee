@@ -1,0 +1,122 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{csproj,props,targets,manifest,json,yml}]
+indent_size = 2
+
+# XAML Styler writes a BOM, as Visual Studio does
+[*.xaml]
+charset = utf-8-bom
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+csharp_style_namespace_declarations = file_scoped:error
+csharp_using_directive_placement = outside_namespace:error
+dotnet_sort_system_directives_first = true
+csharp_prefer_braces = when_multiline:warning
+csharp_style_expression_bodied_properties = true:warning
+csharp_style_expression_bodied_accessors = true:warning
+csharp_style_prefer_switch_expression = true:warning
+csharp_style_prefer_pattern_matching = true:warning
+csharp_style_prefer_not_pattern = true:warning
+csharp_style_pattern_matching_over_is_with_cast_check = true:warning
+csharp_style_pattern_matching_over_as_with_null_check = true:warning
+csharp_style_inlined_variable_declaration = true:warning
+csharp_style_throw_expression = true:warning
+csharp_style_unused_value_assignment_preference = discard_variable:warning
+csharp_prefer_static_local_function = true:warning
+csharp_style_prefer_readonly_struct = true:warning
+dotnet_style_readonly_field = true:warning
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+dotnet_style_predefined_type_for_locals_parameters_members = true:warning
+dotnet_style_predefined_type_for_member_access = true:warning
+dotnet_style_require_accessibility_modifiers = omit_if_default:warning
+dotnet_style_object_initializer = true:warning
+dotnet_style_collection_initializer = true:warning
+dotnet_style_prefer_collection_expression = when_types_loosely_match:warning
+dotnet_style_coalesce_expression = true:warning
+dotnet_style_null_propagation = true:warning
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:warning
+dotnet_style_prefer_auto_properties = true:warning
+dotnet_style_prefer_simplified_boolean_expressions = true:warning
+dotnet_code_quality_unused_parameters = all:warning
+
+# Code-style rules that only reach the build when named
+dotnet_diagnostic.IDE0001.severity = warning
+dotnet_diagnostic.IDE0002.severity = warning
+dotnet_diagnostic.IDE0004.severity = warning
+dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0035.severity = warning
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0052.severity = warning
+dotnet_diagnostic.IDE0080.severity = warning
+dotnet_diagnostic.IDE0100.severity = warning
+dotnet_diagnostic.IDE0110.severity = warning
+
+# The documentation file is only generated so IDE0005 works; no doc comments are written
+dotnet_diagnostic.CS1591.severity = none
+
+# Method length in statements, not lines, so the formatter has no say
+dotnet_diagnostic.MA0051.severity = warning
+MA0051.maximum_lines_per_method = -1
+MA0051.maximum_statements_per_method = 40
+
+# Rules that don't fit a single-app, English-only WinUI codebase
+dotnet_diagnostic.CA1002.severity = none
+dotnet_diagnostic.CA1003.severity = none
+dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1303.severity = none
+dotnet_diagnostic.CA1308.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1724.severity = none
+dotnet_diagnostic.CA1814.severity = none
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA5394.severity = none
+dotnet_diagnostic.MA0004.severity = none
+dotnet_diagnostic.MA0006.severity = none
+dotnet_diagnostic.MA0008.severity = none
+dotnet_diagnostic.MA0016.severity = none
+dotnet_diagnostic.MA0046.severity = none
+dotnet_diagnostic.MA0048.severity = none
+dotnet_diagnostic.S1075.severity = none
+dotnet_diagnostic.S2245.severity = none
+# Pixel loops index rows with integer division on purpose
+dotnet_diagnostic.S2184.severity = none
+# Clamped values are compared exactly on purpose
+dotnet_diagnostic.S1244.severity = none
+# Conditional chains are the house style
+dotnet_diagnostic.S3358.severity = none
+# UI boundaries catch everything to show it instead of crashing; empty catches are still errors
+dotnet_diagnostic.CA1031.severity = none
+# WinUI event handlers and commands are async void by design
+dotnet_diagnostic.VSTHRD100.severity = none
+dotnet_diagnostic.VSTHRD101.severity = none
+dotnet_diagnostic.MA0147.severity = none
+dotnet_diagnostic.S3168.severity = none
+# Cached tasks are awaited on the UI thread they were started on
+dotnet_diagnostic.VSTHRD003.severity = none
+# Duplicates CA1822, which knows XAML event handlers can't be static
+dotnet_diagnostic.S2325.severity = none
+
+[src/Lychee.Core/Cli.cs]
+# A console app has no synchronization context to deadlock on
+dotnet_diagnostic.VSTHRD002.severity = none
+
+[tests/**.cs]
+dotnet_diagnostic.VSTHRD002.severity = none
+dotnet_diagnostic.S1199.severity = none

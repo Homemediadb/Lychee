@@ -14,7 +14,11 @@ using WinRT.Interop;
 namespace Lychee.Gui;
 
 // One at a time: a full-size scan takes a lot of memory
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "Disposed when the window closes; a Window can't be IDisposable")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Design",
+    "CA1001",
+    Justification = "Disposed when the window closes; a Window can't be IDisposable"
+)]
 public sealed partial class BatchWindow : Window
 {
     readonly Queue<BatchRow> waiting = new();
@@ -71,7 +75,8 @@ public sealed partial class BatchWindow : Window
         var picker = new FolderPicker();
         picker.FileTypeFilter.Add("*");
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
-        if (await picker.PickSingleFolderAsync() is not { } folder) return false;
+        if (await picker.PickSingleFolderAsync() is not { } folder)
+            return false;
         FolderBox.Text = Settings.Current.BatchFolder = folder.Path;
         Settings.Current.Save();
         return true;
@@ -80,14 +85,16 @@ public sealed partial class BatchWindow : Window
     async void OnAddFiles(object sender, RoutedEventArgs e)
     {
         var picker = new FileOpenPicker();
-        foreach (var type in MainWindow.ScanTypes) picker.FileTypeFilter.Add(type);
+        foreach (var type in MainWindow.ScanTypes)
+            picker.FileTypeFilter.Add(type);
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
         Add([.. (await picker.PickMultipleFilesAsync()).Select(f => f.Path)]);
     }
 
     void OnDragOver(object sender, DragEventArgs e)
     {
-        if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+            return;
         e.AcceptedOperation = DataPackageOperation.Copy;
         e.DragUIOverride.Caption = "Add to the batch";
     }
@@ -98,17 +105,19 @@ public sealed partial class BatchWindow : Window
             Add([.. (await e.DataView.GetStorageItemsAsync()).OfType<StorageFile>().Select(f => f.Path)]);
     }
 
-    async void Add(IReadOnlyList<string> paths)
+    async void Add(string[] paths)
     {
         var scans = paths.Where(MainWindow.IsScan).ToList();
-        if (scans.Count == 0) return;
+        if (scans.Count == 0)
+            return;
         if (string.IsNullOrWhiteSpace(FolderBox.Text))
         {
             await new ContentDialog
             {
                 XamlRoot = Root.XamlRoot,
                 Title = "Choose an output folder first",
-                Content = "Batch Mode saves each result there. Choose one with Browse\u2026 at the top, then add the scans again.",
+                Content =
+                    "Batch Mode saves each result there. Choose one with Browse\u2026 at the top, then add the scans again.",
                 CloseButtonText = "OK",
                 RequestedTheme = Root.ActualTheme,
             }.ShowAsync();
@@ -120,25 +129,40 @@ public sealed partial class BatchWindow : Window
         Busy(scans.Count > 1 ? $"Pairing {scans.Count} scans\u2026" : "Adding the scan\u2026", scans.Count);
         try
         {
-            try { added = await PairAsync(scans, token); }
-            catch (OperationCanceledException) { added = []; }
+            try
+            {
+                added = await PairAsync(scans, token);
+            }
+            catch (OperationCanceledException)
+            {
+                added = [];
+            }
             if (!token.IsCancellationRequested)
+            {
                 foreach (var row in added)
                 {
                     Items.Children.Add(row.Element);
                     rows.Add(row);
-                    if (row.State == BatchState.Waiting) waiting.Enqueue(row);
+                    if (row.State == BatchState.Waiting)
+                        waiting.Enqueue(row);
                 }
+            }
         }
-        finally { Busy(null, scans.Count); }
+        finally
+        {
+            Busy(null, scans.Count);
+        }
         if (token.IsCancellationRequested)
         {
-            if (!running) NewRun();
-            if (rows.Count == 0) Empty.Visibility = Visibility.Visible;
+            if (!running)
+                NewRun();
+            if (rows.Count == 0)
+                Empty.Visibility = Visibility.Visible;
             ShowProgress();
             return;
         }
-        if (running) return;
+        if (running)
+            return;
         running = true;
         ShowProgress();
         while (!token.IsCancellationRequested && waiting.TryDequeue(out var next))
@@ -147,7 +171,8 @@ public sealed partial class BatchWindow : Window
             ShowProgress();
         }
         running = false;
-        if (token.IsCancellationRequested) NewRun();
+        if (token.IsCancellationRequested)
+            NewRun();
         ShowProgress();
     }
 
@@ -156,7 +181,8 @@ public sealed partial class BatchWindow : Window
     void Busy(string? text, int scans)
     {
         pairing += text is null ? -scans : scans;
-        if (text is not null) BusyText.Text = text;
+        if (text is not null)
+            BusyText.Text = text;
         BusyPanel.Visibility = pairing > 0 ? Visibility.Visible : Visibility.Collapsed;
         BusyRing.IsActive = pairing > 0;
         ShowProgress();
@@ -167,16 +193,20 @@ public sealed partial class BatchWindow : Window
         var (pairs, unmatched, failed) = await Task.Run(() => Pairing.MatchFilesAsync(paths, cancel), cancel);
         cancel.ThrowIfCancellationRequested();
         var found = new List<BatchRow>();
-        foreach (var (w, b) in pairs) found.Add(new BatchRow(w, b.Path));
-        foreach (var u in unmatched) found.Add(new BatchRow(u));
-        foreach (var (p, error) in failed) found.Add(BatchRow.Failed(p, error));
+        foreach (var (w, b) in pairs)
+            found.Add(new BatchRow(w, b.Path));
+        foreach (var u in unmatched)
+            found.Add(new BatchRow(u));
+        foreach (var (p, error) in failed)
+            found.Add(BatchRow.Failed(p, error));
         return [.. found.OrderBy(r => paths.IndexOf(r.Path))];
     }
 
     void OnCancel(object sender, RoutedEventArgs e)
     {
         run.Cancel();
-        while (waiting.TryDequeue(out var row)) row.Cancelled();
+        while (waiting.TryDequeue(out var row))
+            row.Cancelled();
         ShowProgress();
     }
 
@@ -189,16 +219,22 @@ public sealed partial class BatchWindow : Window
             ProgressText.Text = "";
             return;
         }
-        int done = rows.Count(r => r.State == BatchState.Done), failed = rows.Count(r => r.State == BatchState.Failed);
-        int cancelled = rows.Count(r => r.State == BatchState.Cancelled), left = total - done - failed - cancelled;
+        int done = rows.Count(r => r.State == BatchState.Done),
+            failed = rows.Count(r => r.State == BatchState.Failed);
+        int cancelled = rows.Count(r => r.State == BatchState.Cancelled),
+            left = total - done - failed - cancelled;
         var parts = new List<string> { $"{done} of {total} done" };
-        if (failed > 0) parts.Add($"{failed} failed");
-        if (cancelled > 0) parts.Add($"{cancelled} cancelled");
-        if (left > 0) parts.Add($"{left} to go");
+        if (failed > 0)
+            parts.Add($"{failed} failed");
+        if (cancelled > 0)
+            parts.Add($"{cancelled} cancelled");
+        if (left > 0)
+            parts.Add($"{left} to go");
         ProgressText.Text = string.Join(" \u00B7 ", parts);
     }
 
-    [LibraryImport("user32.dll")] private static partial uint GetDpiForWindow(nint hwnd);
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDpiForWindow(nint hwnd);
 }
 
 sealed class BatchRow
@@ -221,12 +257,21 @@ sealed class BatchRow
         return row;
     }
 
-    public BatchRow(Pairing.Scan scan, string? black = null) : this(scan.Path, black, scan) { }
+    public BatchRow(Pairing.Scan scan, string? black = null)
+        : this(scan.Path, black, scan) { }
 
     BatchRow(string path, string? black, Pairing.Scan? scan)
     {
         (Path, this.black) = (path, black);
-        var name = new TextBlock { Text = black is null ? System.IO.Path.GetFileName(path) : $"{System.IO.Path.GetFileName(path)} + {System.IO.Path.GetFileName(black)}", TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(2, 0, 0, 0) };
+        var name = new TextBlock
+        {
+            Text = black is null
+                ? System.IO.Path.GetFileName(path)
+                : $"{System.IO.Path.GetFileName(path)} + {System.IO.Path.GetFileName(black)}",
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
+            Margin = new Thickness(2, 0, 0, 0),
+        };
         ToolTipService.SetToolTip(name, black is null ? path : $"{path}\n{black} (over black)");
         var first = Add();
         first.Step("Waiting\u2026");
@@ -238,14 +283,24 @@ sealed class BatchRow
         Element = new StackPanel
         {
             Spacing = 6,
-            Children = { name, new Border { Style = (Style)Application.Current.Resources["Card"], Padding = new Thickness(0), Child = discs } },
+            Children =
+            {
+                name,
+                new Border
+                {
+                    Style = (Style)Application.Current.Resources["Card"],
+                    Padding = new Thickness(0),
+                    Child = discs,
+                },
+            },
         };
     }
 
     DiscRow Add()
     {
         var row = new DiscRow();
-        if (rows.Count > 0) row.Element.BorderThickness = new Thickness(0, 1, 0, 0);
+        if (rows.Count > 0)
+            row.Element.BorderThickness = new Thickness(0, 1, 0, 0);
         rows.Add(row);
         discs.Children.Add(row.Element);
         return row;
@@ -261,7 +316,15 @@ sealed class BatchRow
             closing.ThrowIfCancellationRequested();
             Discs(results.Count);
             for (; next < results.Count; next++)
-                await SaveDiscAsync(rows[next], results[next], OutputPath(folder, results.Count > 1 ? next + 1 : null), closing);
+            {
+                await SaveDiscAsync(
+                    rows[next],
+                    results[next],
+                    OutputPath(folder, results.Count > 1 ? next + 1 : null),
+                    closing
+                );
+            }
+
             State = rows.Any(r => r.State == BatchState.Failed) ? BatchState.Failed : BatchState.Done;
         }
         catch (OperationCanceledException)
@@ -286,14 +349,17 @@ sealed class BatchRow
         {
             first.Step("Opening the scan over black\u2026");
             blackScan = await Task.Run(() => Image.LoadAsync(black), closing);
-            if (blackScan.Width != scan.Width || blackScan.Height != scan.Height) throw new InvalidDataException("the scan over black isn't the same size");
+            if (blackScan.Width != scan.Width || blackScan.Height != scan.Height)
+                throw new InvalidDataException("the scan over black isn't the same size");
         }
         var progress = new Progress<Remover.Step>(step =>
         {
-            if (closing.IsCancellationRequested) return;
+            if (closing.IsCancellationRequested)
+                return;
             var row = step.Disc < 0 ? first : Discs(step.Discs)[step.Disc];
             row.Step($"{step.Text}\u2026");
-            if (step.Picture is { } picture) _ = row.ShowAsync(picture);
+            if (step.Picture is { } picture)
+                _ = row.ShowAsync(picture);
         });
         return await Task.Run(() => Remover.RemoveBackgrounds(scan, blackScan, progress), closing);
     }
@@ -307,7 +373,10 @@ sealed class BatchRow
                 row.Step("Auto rotating\u2026");
                 _ = row.ShowAsync(result);
                 var turned = result;
-                result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotateAsync(turned)), closing);
+                result = await Task.Run(
+                    async () => turned.Rotated(await Settings.Current.AutoRotateAsync(turned)),
+                    closing
+                );
                 closing.ThrowIfCancellationRequested();
             }
             row.Step("Saving\u2026");
@@ -322,36 +391,74 @@ sealed class BatchRow
 
     List<DiscRow> Discs(int count)
     {
-        while (rows.Count < count) Add().Step("Waiting\u2026");
+        while (rows.Count < count)
+            Add().Step("Waiting\u2026");
         if (count > 1)
-            for (int d = 0; d < count; d++) rows[d].Label = $"Disc {d + 1}";
+        {
+            for (int d = 0; d < count; d++)
+                rows[d].Label = $"Disc {d + 1}";
+        }
+
         return rows;
     }
 
     public void Cancelled(int from = 0)
     {
-        foreach (var row in rows.Skip(from)) row.Cancelled();
+        foreach (var row in rows.Skip(from))
+            row.Cancelled();
         State = BatchState.Cancelled;
     }
 
     string OutputPath(string folder, int? disc)
     {
         var dst = Cli.OutputPath(Path, folder, Settings.Current.SaveSuffix, disc);
-        return string.Equals(System.IO.Path.GetFullPath(dst), System.IO.Path.GetFullPath(Path), StringComparison.OrdinalIgnoreCase) ? Cli.OutputPath(Path, folder, disc: disc) : dst;
+        return string.Equals(
+            System.IO.Path.GetFullPath(dst),
+            System.IO.Path.GetFullPath(Path),
+            StringComparison.OrdinalIgnoreCase
+        )
+            ? Cli.OutputPath(Path, folder, disc: disc)
+            : dst;
     }
 }
 
 sealed class DiscRow
 {
-    readonly ProgressRing ring = new() { Width = 20, Height = 20, IsActive = true };
+    readonly ProgressRing ring = new()
+    {
+        Width = 20,
+        Height = 20,
+        IsActive = true,
+    };
     readonly FontIcon outcome = new() { FontSize = 18, Visibility = Visibility.Collapsed };
-    readonly Controls.StageView preview = new() { Interactive = false, MaxSide = 160, Backdrop = Backdrop.Checkerboard, Square = 6, Width = 72, Height = 72, IsHitTestVisible = false };
-    readonly TextBlock label = new() { Visibility = Visibility.Collapsed, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] };
-    readonly TextBlock size = Caption(""), file = Caption("");
+    readonly Controls.StageView preview = new()
+    {
+        Interactive = false,
+        MaxSide = 160,
+        Backdrop = Backdrop.Checkerboard,
+        Square = 6,
+        Width = 72,
+        Height = 72,
+        IsHitTestVisible = false,
+    };
+    readonly TextBlock label = new()
+    {
+        Visibility = Visibility.Collapsed,
+        Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"],
+    };
+    readonly TextBlock size = Caption(""),
+        file = Caption("");
     readonly TextBlock step = Caption("");
     readonly FontIcon copyIcon = Icon("\uE8C8");
-    readonly Button copy, view;
-    readonly StackPanel buttons = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+    readonly Button copy,
+        view;
+    readonly StackPanel buttons = new()
+    {
+        Orientation = Orientation.Horizontal,
+        Spacing = 8,
+        VerticalAlignment = VerticalAlignment.Center,
+        Visibility = Visibility.Collapsed,
+    };
     string? output;
 
     public Border Element { get; }
@@ -360,15 +467,36 @@ sealed class DiscRow
 
     public DiscRow()
     {
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2, Children = { label, size, file } };
-        var status = new Grid { Width = 24, VerticalAlignment = VerticalAlignment.Center, Children = { ring, outcome } };
-        (step.VerticalAlignment, step.HorizontalAlignment, step.TextAlignment, step.MaxWidth) = (VerticalAlignment.Center, HorizontalAlignment.Right, TextAlignment.Right, 220);
+        var text = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Spacing = 2,
+            Children = { label, size, file },
+        };
+        var status = new Grid
+        {
+            Width = 24,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { ring, outcome },
+        };
+        (step.VerticalAlignment, step.HorizontalAlignment, step.TextAlignment, step.MaxWidth) = (
+            VerticalAlignment.Center,
+            HorizontalAlignment.Right,
+            TextAlignment.Right,
+            220
+        );
         var right = new Grid { VerticalAlignment = VerticalAlignment.Center, Children = { step, buttons } };
         var row = new Grid
         {
             ColumnSpacing = 12,
             MinHeight = 72,
-            ColumnDefinitions = { new() { Width = GridLength.Auto }, new() { Width = GridLength.Auto }, new(), new() { Width = GridLength.Auto } },
+            ColumnDefinitions =
+            {
+                new() { Width = GridLength.Auto },
+                new() { Width = GridLength.Auto },
+                new(),
+                new() { Width = GridLength.Auto },
+            },
             Children = { status, preview, text, right },
         };
         copy = new Button { Content = copyIcon, Padding = new Thickness(9, 8, 9, 8) };
@@ -377,7 +505,8 @@ sealed class DiscRow
         Tip(copy, "Copy", "Copy the result to the clipboard, with transparency");
         Tip(stage, "Preview", "The result on a stage of its own, with the backdrops beside it");
         Tip(view, "Open", "Open the saved PNG in the default viewer");
-        foreach (var b in new[] { stage, view }) b.HorizontalAlignment = HorizontalAlignment.Stretch;
+        foreach (var b in new[] { stage, view })
+            b.HorizontalAlignment = HorizontalAlignment.Stretch;
         buttons.Children.Add(copy);
         buttons.Children.Add(new StackPanel { Spacing = 4, Children = { stage, view } });
         RoundCorners(preview, 4);
@@ -387,7 +516,12 @@ sealed class DiscRow
         copy.Click += OnCopy;
         stage.Click += OnPreview;
         view.Click += OnOpen;
-        Element = new Border { BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"], Padding = new Thickness(12, 8, 12, 8), Child = row };
+        Element = new Border
+        {
+            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+            Padding = new Thickness(12, 8, 12, 8),
+            Child = row,
+        };
     }
 
     static void RoundCorners(FrameworkElement element, float radius)
@@ -400,7 +534,8 @@ sealed class DiscRow
 
     async void OnCopy(object sender, RoutedEventArgs e)
     {
-        if (output is null) return;
+        if (output is null)
+            return;
         copy.IsEnabled = false;
         try
         {
@@ -418,12 +553,14 @@ sealed class DiscRow
 
     void OnPreview(object sender, RoutedEventArgs e)
     {
-        if (output is not null) new PreviewWindow(output).Activate();
+        if (output is not null)
+            new PreviewWindow(output).Activate();
     }
 
     async void OnOpen(object sender, RoutedEventArgs e)
     {
-        if (output is null) return;
+        if (output is null)
+            return;
         try
         {
             await Windows.System.Launcher.LaunchFileAsync(await StorageFile.GetFileFromPathAsync(output));
@@ -455,16 +592,22 @@ sealed class DiscRow
         Finish(failed: false);
     }
 
-    static void Show(TextBlock line, string text) => (line.Text, line.Visibility) = (text, text.Length > 0 ? Visibility.Visible : Visibility.Collapsed);
+    static void Show(TextBlock line, string text) =>
+        (line.Text, line.Visibility) = (text, text.Length > 0 ? Visibility.Visible : Visibility.Collapsed);
 
     static FontIcon Icon(string glyph) => new() { Glyph = glyph, FontSize = 14 };
 
-    static StackPanel Labelled(string glyph, string label) => new()
-    {
-        Orientation = Orientation.Horizontal,
-        Spacing = 8,
-        Children = { Icon(glyph), new TextBlock { Text = label } },
-    };
+    static StackPanel Labelled(string glyph, string label) =>
+        new()
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children =
+            {
+                Icon(glyph),
+                new TextBlock { Text = label },
+            },
+        };
 
     static void Tip(Button button, string name, string tip)
     {
@@ -472,14 +615,15 @@ sealed class DiscRow
         ToolTipService.SetToolTip(button, tip);
     }
 
-    static TextBlock Caption(string text) => new()
-    {
-        Text = text,
-        TextWrapping = TextWrapping.Wrap,
-        Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
-        Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
-        Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-    };
+    static TextBlock Caption(string text) =>
+        new()
+        {
+            Text = text,
+            TextWrapping = TextWrapping.Wrap,
+            Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+        };
 
     void Describe(int width, int height, double? dpi, long bytes)
     {
@@ -498,7 +642,8 @@ sealed class DiscRow
                 using var f = File.OpenRead(path);
                 return (Resolution.Read(f), f.Length);
             });
-            if (size.Visibility == Visibility.Collapsed) Describe(width, height, dpi, bytes);
+            if (size.Visibility == Visibility.Collapsed)
+                Describe(width, height, dpi, bytes);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -519,7 +664,10 @@ sealed class DiscRow
         Show(step, "Cancelled");
         State = BatchState.Cancelled;
         (ring.IsActive, ring.Visibility, outcome.Visibility) = (false, Visibility.Collapsed, Visibility.Visible);
-        (outcome.Glyph, outcome.Foreground) = ("\uE711", (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]);
+        (outcome.Glyph, outcome.Foreground) = (
+            "\uE711",
+            (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+        );
     }
 
     void Finish(bool failed)
@@ -532,4 +680,10 @@ sealed class DiscRow
     }
 }
 
-public enum BatchState { Waiting, Done, Failed, Cancelled }
+public enum BatchState
+{
+    Waiting,
+    Done,
+    Failed,
+    Cancelled,
+}

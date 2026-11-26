@@ -16,17 +16,45 @@ public sealed partial class BackdropList : UserControl
         AutomationProperties.SetName(this, "Backdrop");
         foreach (var b in Enum.GetValues<Backdrop>())
         {
-            var thumbnail = new StageView { Backdrop = b, Interactive = false, MaxSide = 320, Square = 6, Height = 120, IsHitTestVisible = false };
+            var thumbnail = new StageView
+            {
+                Backdrop = b,
+                Interactive = false,
+                MaxSide = 320,
+                Square = 6,
+                Height = 120,
+                IsHitTestVisible = false,
+            };
             Thumbnails.Add(thumbnail);
             var check = new Border
             {
-                Width = 20, Height = 20, CornerRadius = new CornerRadius(10), Margin = new Thickness(6),
-                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+                Width = 20,
+                Height = 20,
+                CornerRadius = new CornerRadius(10),
+                Margin = new Thickness(6),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
                 Background = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"],
-                Child = new FontIcon { Glyph = "\uE73E", FontSize = 11, Foreground = (Brush)Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] },
+                Child = new FontIcon
+                {
+                    Glyph = "\uE73E",
+                    FontSize = 11,
+                    Foreground = (Brush)Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"],
+                },
             };
-            var ring = new Border { BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(4), Padding = new Thickness(2), Child = new Grid { Children = { thumbnail, check } } };
-            var label = new TextBlock { Text = b.ToString(), HorizontalAlignment = HorizontalAlignment.Center, Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"] };
+            var ring = new Border
+            {
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(2),
+                Child = new Grid { Children = { thumbnail, check } },
+            };
+            var label = new TextBlock
+            {
+                Text = b.ToString(),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            };
             var button = new Button
             {
                 Content = new StackPanel { Spacing = 4, Children = { ring, label } },
@@ -48,7 +76,8 @@ public sealed partial class BackdropList : UserControl
 
     static void Choose(Backdrop chosen)
     {
-        if (chosen == Settings.Current.Backdrop) return;
+        if (chosen == Settings.Current.Backdrop)
+            return;
         Settings.Current.Backdrop = chosen;
         Settings.Current.Save();
     }

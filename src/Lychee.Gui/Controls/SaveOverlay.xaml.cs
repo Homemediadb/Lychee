@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
@@ -33,10 +33,13 @@ public sealed partial class SaveOverlay : UserControl
 
     public void Report(string stage, double fraction)
     {
-        if (saving is not { IsCancellationRequested: false }) return;
+        if (saving is not { IsCancellationRequested: false })
+            return;
         (Bar.Value, Bar.IsIndeterminate) = (fraction, false);
         var m = StagePercent().Match(stage);
-        (StageText.Text, PercentText.Text) = m.Success ? (m.Groups["stage"].Value, m.Groups["percent"].Value) : (stage, "");
+        (StageText.Text, PercentText.Text) = m.Success
+            ? (m.Groups["stage"].Value, m.Groups["percent"].Value)
+            : (stage, "");
     }
 
     public void ShowDone(string file, params (string Label, string? Value)[] facts)
@@ -46,7 +49,8 @@ public sealed partial class SaveOverlay : UserControl
         FactValues.Inlines.Clear();
         foreach (var (label, value) in facts)
         {
-            if (value is null && FactLabels.Inlines.Count > 0) AddFact("", "");
+            if (value is null && FactLabels.Inlines.Count > 0)
+                AddFact("", "");
             AddFact(label, value);
         }
         ShowOutcome("Exported", "\uE73E", "SuccessBadge");
@@ -57,10 +61,12 @@ public sealed partial class SaveOverlay : UserControl
     void AddFact(string label, string? value)
     {
         var name = new Run { Text = label };
-        if (value is null) (name.FontWeight, name.Foreground) = (FontWeights.SemiBold, FactValues.Foreground);
+        if (value is null)
+            (name.FontWeight, name.Foreground) = (FontWeights.SemiBold, FactValues.Foreground);
         foreach (var (block, run) in new[] { (FactLabels, name), (FactValues, new Run { Text = value ?? "" }) })
         {
-            if (block.Inlines.Count > 0) block.Inlines.Add(new LineBreak());
+            if (block.Inlines.Count > 0)
+                block.Inlines.Add(new LineBreak());
             block.Inlines.Add(run);
         }
     }
@@ -102,13 +108,23 @@ public sealed partial class SaveOverlay : UserControl
         XButton.IsEnabled = name != "Cancelling";
     }
 
-    [GeneratedRegex(@"^(?<stage>.*?)\s*(?<percent>\d+\s*%)$", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)] private static partial Regex StagePercent();
+    [GeneratedRegex(
+        @"^(?<stage>.*?)\s*(?<percent>\d+\s*%)$",
+        RegexOptions.ExplicitCapture,
+        matchTimeoutMilliseconds: 1000
+    )]
+    private static partial Regex StagePercent();
 
-    void OnFileTextSizeChanged(object sender, SizeChangedEventArgs e) => DetailText.MaxWidth = Math.Max(380, e.NewSize.Width - 12);
+    void OnFileTextSizeChanged(object sender, SizeChangedEventArgs e) =>
+        DetailText.MaxWidth = Math.Max(380, e.NewSize.Width - 12);
 
     void OnX(object sender, RoutedEventArgs e)
     {
-        if (saving is null) { Close(); return; }
+        if (saving is null)
+        {
+            Close();
+            return;
+        }
         saving.Cancel();
         (StageText.Text, PercentText.Text) = ("Cancelling\u2026", "");
         NameX("Cancelling");
@@ -116,6 +132,7 @@ public sealed partial class SaveOverlay : UserControl
 
     void OnKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == VirtualKey.Escape && saving is null) Close();
+        if (e.Key == VirtualKey.Escape && saving is null)
+            Close();
     }
 }

@@ -23,11 +23,15 @@ public sealed partial class DropOverlay : UserControl
         bool usable = scans > 0;
         Icon.Glyph = usable ? "\uE896" : "\uE7BA";
         TitleText.Text = usable ? $"Drop to open {scans} scan{(scans == 1 ? "" : "s")}" : "Only images can be opened";
-        DetailText.Text = !usable ? "PNG, JPEG, WebP or BMP scans of a disc on a white background"
-            : other > 0 ? $"Each opens in its own tab \u00B7 {other} other item{(other == 1 ? "" : "s")} will be skipped"
+        DetailText.Text =
+            !usable ? "PNG, JPEG, WebP or BMP scans of a disc on a white background"
+            : other > 0
+                ? $"Each opens in its own tab \u00B7 {other} other item{(other == 1 ? "" : "s")} will be skipped"
             : "Each opens in its own tab";
-        Frame.Stroke = (Brush)Application.Current.Resources[usable ? "AccentFillColorDefaultBrush" : "SystemFillColorCautionBrush"];
-        if (IsShown) return;
+        Frame.Stroke = (Brush)
+            Application.Current.Resources[usable ? "AccentFillColorDefaultBrush" : "SystemFillColorCautionBrush"];
+        if (IsShown)
+            return;
         IsShown = true;
         Opacity = 1;
         Root.Opacity = 0;
@@ -39,7 +43,8 @@ public sealed partial class DropOverlay : UserControl
 
     public void Hide()
     {
-        if (!IsShown) return;
+        if (!IsShown)
+            return;
         IsShown = false;
         HideStoryboard.Begin();
     }

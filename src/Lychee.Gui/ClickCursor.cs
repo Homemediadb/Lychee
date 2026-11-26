@@ -15,8 +15,15 @@ static class ClickCursor
     static readonly InputCursor Hand = InputSystemCursor.Create(InputSystemCursorShape.Hand);
 
     [DynamicDependency(DynamicallyAccessedMemberTypes.NonPublicProperties, typeof(UIElement))]
-    [SuppressMessage("Security", "S3011", Justification = "ProtectedCursor is the only way to set another control's cursor")]
-    static readonly PropertyInfo CursorProperty = typeof(UIElement).GetProperty("ProtectedCursor", BindingFlags.Instance | BindingFlags.NonPublic)!;
+    [SuppressMessage(
+        "Security",
+        "S3011",
+        Justification = "ProtectedCursor is the only way to set another control's cursor"
+    )]
+    static readonly PropertyInfo CursorProperty = typeof(UIElement).GetProperty(
+        "ProtectedCursor",
+        BindingFlags.Instance | BindingFlags.NonPublic
+    )!;
 
     public static void Attach(UIElement root) =>
         root.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(OnPointerMoved), handledEventsToo: true);
@@ -25,9 +32,11 @@ static class ClickCursor
     {
         for (var d = e.OriginalSource as DependencyObject; d is not null; d = VisualTreeHelper.GetParent(d))
         {
-            if (d is not (ButtonBase or ToggleSwitch or SelectorBarItem or TabViewItem or ComboBox)) continue;
+            if (d is not (ButtonBase or ToggleSwitch or SelectorBarItem or TabViewItem or ComboBox))
+                continue;
             var cursor = d is Control { IsEnabled: false } ? null : Hand;
-            if (!ReferenceEquals(CursorProperty.GetValue(d), cursor)) CursorProperty.SetValue(d, cursor);
+            if (!ReferenceEquals(CursorProperty.GetValue(d), cursor))
+                CursorProperty.SetValue(d, cursor);
             return;
         }
     }
