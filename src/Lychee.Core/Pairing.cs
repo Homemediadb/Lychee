@@ -77,16 +77,18 @@ public static class Pairing
         return (pairs, left);
     }
 
-    public static async Task<(List<(Scan White, Scan Black)> Pairs, List<Scan> Unmatched, List<(string Path, string Error)> Failed)> MatchFilesAsync(IReadOnlyList<string> paths)
+    public static async Task<(List<(Scan White, Scan Black)> Pairs, List<Scan> Unmatched, List<(string Path, string Error)> Failed)> MatchFilesAsync(IReadOnlyList<string> paths, CancellationToken cancel = default)
     {
         var (scans, failed) = (new List<Scan>(), new List<(string, string)>());
         foreach (var p in paths)
             try
             {
+                cancel.ThrowIfCancellationRequested();
                 var (preview, w, h) = await Image.LoadPreviewAsync(p, 512);
                 scans.Add(new Scan(p, w, h, preview));
             }
-            catch (Exception e) { failed.Add((p, e.Message)); }
+            catch (Exception e) when (e is not OperationCanceledException) { failed.Add((p, e.Message)); }
+        cancel.ThrowIfCancellationRequested();
         var (pairs, unmatched) = Match(scans);
         return (pairs, unmatched, failed);
     }

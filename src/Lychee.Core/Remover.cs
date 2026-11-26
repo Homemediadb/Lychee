@@ -145,6 +145,8 @@ public static class Remover
             int box = (int)Math.Ceiling(e.R * (1 + Math.Abs(e.E)) * 1.15);
             return image.Crop((int)e.Cx - box, (int)e.Cy - box, 2 * box, 2 * box);
         }
+        if (progress is not null)
+            for (int at = 0; at < ordered.Count; at++) progress.Report(new("Waiting", at, ordered.Count, Around(ordered[at], rgb)));
         for (int at = 0; at < ordered.Count; at++)
         {
             var mine = ordered[at];

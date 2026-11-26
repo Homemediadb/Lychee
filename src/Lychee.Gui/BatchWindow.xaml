@@ -29,6 +29,15 @@
                        Text="Each scan is processed in turn and saved as a PNG in the output folder, named like an export. Add a disc's scans over white and over black together and they're paired up and matted automatically." />
         </StackPanel>
 
+        <Border x:Name="BusyPanel" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"
+                Padding="24,16" CornerRadius="8" BorderThickness="1"
+                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <StackPanel Spacing="12">
+                <ProgressRing x:Name="BusyRing" Width="32" Height="32" IsActive="False" AutomationProperties.Name="Working" />
+                <TextBlock x:Name="BusyText" HorizontalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+        </Border>
+
         <Border Grid.Row="3" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="16,12">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                 <Button x:Name="CancelButton" Content="Cancel" Click="OnCancel" IsEnabled="False" AutomationProperties.Name="Cancel the batch"

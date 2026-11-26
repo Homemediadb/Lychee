@@ -108,36 +108,60 @@ public sealed partial class BatchWindow : Window
             return;
         }
         Empty.Visibility = Visibility.Collapsed;
-        foreach (var row in await Pair(scans))
+        var token = run.Token;
+        List<BatchRow> added;
+        Busy(scans.Count > 1 ? $"Pairing {scans.Count} scans\u2026" : "Adding the scan\u2026", scans.Count);
+        try
         {
-            Items.Children.Add(row.Element);
-            rows.Add(row);
-            if (row.State == BatchState.Waiting) waiting.Enqueue(row);
+            try { added = await Pair(scans, token); }
+            catch (OperationCanceledException) { added = []; }
+            if (!token.IsCancellationRequested)
+                foreach (var row in added)
+                {
+                    Items.Children.Add(row.Element);
+                    rows.Add(row);
+                    if (row.State == BatchState.Waiting) waiting.Enqueue(row);
+                }
         }
-        ShowProgress();
+        finally { Busy(null, scans.Count); }
+        if (token.IsCancellationRequested)
+        {
+            if (!running) run = new();
+            if (rows.Count == 0) Empty.Visibility = Visibility.Visible;
+            ShowProgress();
+            return;
+        }
         if (running) return;
         running = true;
-        CancelButton.IsEnabled = true;
-        var token = run.Token;
+        ShowProgress();
         while (!token.IsCancellationRequested && waiting.TryDequeue(out var next))
         {
             await next.ProcessAsync(FolderBox.Text, token);
             ShowProgress();
         }
         running = false;
-        CancelButton.IsEnabled = false;
         if (token.IsCancellationRequested) run = new();
         ShowProgress();
     }
 
-    async Task<List<BatchRow>> Pair(List<string> paths)
+    int pairing;
+
+    void Busy(string? text, int scans)
     {
-        if (paths.Count < 2) return [.. paths.Select(p => new BatchRow(p))];
-        ProgressText.Text = $"Pairing {paths.Count} scans\u2026";
-        var (pairs, unmatched, failed) = await Task.Run(() => Pairing.MatchFilesAsync(paths));
+        pairing += text is null ? -scans : scans;
+        if (text is not null) BusyText.Text = text;
+        BusyPanel.Visibility = pairing > 0 ? Visibility.Visible : Visibility.Collapsed;
+        BusyRing.IsActive = pairing > 0;
+        ShowProgress();
+    }
+
+    async Task<List<BatchRow>> Pair(List<string> paths, CancellationToken cancel)
+    {
+        var (pairs, unmatched, failed) = await Task.Run(() => Pairing.MatchFilesAsync(paths, cancel), cancel);
+        cancel.ThrowIfCancellationRequested();
         var rows = new List<BatchRow>();
-        foreach (var (w, b) in pairs) rows.Add(new BatchRow(w.Path, b.Path));
-        foreach (var u in unmatched) rows.Add(new BatchRow(u.Path));
+        foreach (var (w, b) in pairs) rows.Add(new BatchRow(w, b.Path));
+        foreach (var u in unmatched) rows.Add(new BatchRow(u));
         foreach (var (p, error) in failed) rows.Add(BatchRow.Failed(p, error));
         return [.. rows.OrderBy(r => paths.IndexOf(r.Path))];
     }
@@ -146,15 +170,21 @@ public sealed partial class BatchWindow : Window
     {
         run.Cancel();
         while (waiting.TryDequeue(out var row)) row.Cancelled();
-        CancelButton.IsEnabled = false;
         ShowProgress();
     }
 
     void ShowProgress()
     {
+        CancelButton.IsEnabled = (running || pairing > 0) && !run.IsCancellationRequested;
+        int total = rows.Count + pairing;
+        if (total == 0)
+        {
+            ProgressText.Text = "";
+            return;
+        }
         int done = rows.Count(r => r.State == BatchState.Done), failed = rows.Count(r => r.State == BatchState.Failed);
-        int cancelled = rows.Count(r => r.State == BatchState.Cancelled), left = rows.Count - done - failed - cancelled;
-        var parts = new List<string> { $"{done} of {rows.Count} done" };
+        int cancelled = rows.Count(r => r.State == BatchState.Cancelled), left = total - done - failed - cancelled;
+        var parts = new List<string> { $"{done} of {total} done" };
         if (failed > 0) parts.Add($"{failed} failed");
         if (cancelled > 0) parts.Add($"{cancelled} cancelled");
         if (left > 0) parts.Add($"{left} to go");
@@ -178,19 +208,26 @@ sealed class BatchRow
 
     public static BatchRow Failed(string path, string message)
     {
-        var row = new BatchRow(path);
+        var row = new BatchRow(path, null, null);
         row.rows[0].Fail(message);
         row.State = BatchState.Failed;
         return row;
     }
 
-    public BatchRow(string path, string? black = null)
+    public BatchRow(Pairing.Scan scan, string? black = null) : this(scan.Path, black, scan) { }
+
+    BatchRow(string path, string? black, Pairing.Scan? scan)
     {
         (Path, this.black) = (path, black);
         var name = new TextBlock { Text = black is null ? System.IO.Path.GetFileName(path) : $"{System.IO.Path.GetFileName(path)} + {System.IO.Path.GetFileName(black)}", TextTrimming = TextTrimming.CharacterEllipsis, Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"], Margin = new Thickness(2, 0, 0, 0) };
         ToolTipService.SetToolTip(name, black is null ? path : $"{path}\n{black} (over black)");
         var first = Add();
         first.Step("Waiting\u2026");
+        if (scan is not null)
+        {
+            _ = first.ShowAsync(scan.Preview);
+            _ = first.DescribeScanAsync(path, scan.Width, scan.Height);
+        }
         Element = new StackPanel
         {
             Spacing = 6,
@@ -419,6 +456,20 @@ sealed class DiscRow
     }
 
     public void Describe(Image image, long bytes) => Describe(image.Width, image.Height, image.Dpi, bytes);
+
+    public async Task DescribeScanAsync(string path, int width, int height)
+    {
+        try
+        {
+            var (dpi, bytes) = await Task.Run(() =>
+            {
+                using var f = File.OpenRead(path);
+                return (Resolution.Read(f), f.Length);
+            });
+            if (size.Visibility == Visibility.Collapsed) Describe(width, height, dpi, bytes);
+        }
+        catch (Exception) { }
+    }
 
     public void Fail(string message)
     {
