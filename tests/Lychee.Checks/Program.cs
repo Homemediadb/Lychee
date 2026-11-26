@@ -2,8 +2,8 @@ using Lychee;
 
 const int N = 600;
 var src = new byte[N * N * 3];
-double R(int i) => Math.Sqrt(Math.Pow(i % N - 300, 2) + Math.Pow(i / N - 300, 2));
-void Paint(byte[] img, Func<double, bool> where, byte r, byte g, byte b)
+static double R(int i) => Math.Sqrt(Math.Pow(i % N - 300, 2) + Math.Pow(i / N - 300, 2));
+static void Paint(byte[] img, Func<double, bool> where, byte r, byte g, byte b)
 {
     for (int i = 0; i < N * N; i++) if (where(R(i))) (img[3 * i], img[3 * i + 1], img[3 * i + 2]) = (r, g, b);
 }
@@ -17,7 +17,7 @@ Paint(src, r => r <= 50, 255, 255, 255);
 Paint(src, r => r is >= 39 and <= 41, 235, 235, 235);
 Paint(src, r => r <= 32, 160, 160, 160);
 Paint(src, r => r <= 30, 255, 255, 255);
-byte[] OverBlack(byte[] white)
+static byte[] OverBlack(byte[] white)
 {
     var b = (byte[])white.Clone();
     for (int i = 0; i < N * N; i++)
@@ -32,7 +32,7 @@ var blk = OverBlack(src);
 
 var scan = new Image(N, N, 3, src);
 var (out1, outer) = Remover.Matte(scan);
-byte A(Image im, int x, int y) => im.Pixels[4 * (y * im.Width + x) + 3];
+static byte A(Image im, int x, int y) => im.Pixels[4 * (y * im.Width + x) + 3];
 Check(A(out1, 0, 0) == 0 && A(out1, 47, 300) is > 0 and < 255, "background transparent, shadow translucent");
 Check(A(out1, 300, 300) == 0, "the hole is transparent");
 Check(Enumerable.Range(0, N * N).Where(i => R(i) is > 34 and < 245).All(i => out1.Pixels[4 * i + 3] == 255), "without a black scan the disc, clear plastic too, stays opaque");
@@ -100,10 +100,10 @@ byte[] Other(byte r, byte g, byte b)
 var noise = new Random(1);
 Image Second(byte[] black) => new(N, N, 3, [.. black.Select(v => (byte)Math.Clamp(v * 0.95 + noise.Next(-3, 4), 0, 255))]);
 var (discB, discC) = (Other(200, 40, 60), Other(40, 60, 200));
-Pairing.Scan S(string name, Image image) => new(name, N, N, image);
+static Pairing.Scan S(string name, Image image) => new(name, N, N, image);
 var match = Pairing.Match([S("a", scan), S("b", new Image(N, N, 3, discB)), S("c", new Image(N, N, 3, discC)),
     S("b black", Second(OverBlack(discB))), S("a black", Second(blk))]);
-Check(match.Pairs.Select(p => $"{p.White.Path}+{p.Black.Path}").Order().SequenceEqual(["a+a black", "b+b black"]), "each disc paired with its own scan over black");
+Check(match.Pairs.Select(p => $"{p.White.Path}+{p.Black.Path}").Order(StringComparer.Ordinal).SequenceEqual(["a+a black", "b+b black"], StringComparer.Ordinal), "each disc paired with its own scan over black");
 Check(match.Unmatched.Single().Path == "c", "the disc over white alone is left over");
 Check(Pairing.Match([S("a", scan), S("a again", scan), S("a black", Second(blk))]).Pairs.Count == 0, "two scans of one disc over white: too close to call, so no pair");
 
@@ -116,20 +116,21 @@ foreach (double? dpi in new double?[] { 1200, null })
     File.Delete(file);
 }
 
+var literalPattern = new System.Text.RegularExpressions.Regex(@"""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)'", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
 var root = AppContext.BaseDirectory;
 while (root is not null && !File.Exists(Path.Combine(root, "Lychee.sln"))) root = Path.GetDirectoryName(root);
 Check(root is not null, "the repository's source is found");
 foreach (var f in Directory.EnumerateFiles(Path.Combine(root!, "src"), "*.cs", SearchOption.AllDirectories))
 {
-    if (f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
+    if (f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)) continue;
     int lineNo = 0;
     foreach (var line in File.ReadLines(f))
     {
         lineNo++;
-        if (line.TrimStart().StartsWith("//")) continue;
-        var literals = System.Text.RegularExpressions.Regex.Matches(line, @"""(?:[^""\\]|\\.)*""|'(?:[^'\\]|\\.)'");
+        if (line.TrimStart().StartsWith("//", StringComparison.Ordinal)) continue;
+        var literals = literalPattern.Matches(line);
         int comment = line.Length;
-        for (int at = line.IndexOf("//"); at >= 0; at = line.IndexOf("//", at + 2))
+        for (int at = line.IndexOf("//", StringComparison.Ordinal); at >= 0; at = line.IndexOf("//", at + 2, StringComparison.Ordinal))
             if (!literals.Any(m => m.Index < at && at < m.Index + m.Length)) { comment = at; break; }
         foreach (var m in literals.Where(m => m.Index < comment))
             Check(m.Value.All(c => c < 128), $"a string literal that isn't ASCII, at {f}:{lineNo} (escape it as \\uXXXX)");
@@ -139,7 +140,7 @@ Console.WriteLine("ok");
 
 static void Check(bool ok, string what)
 {
-    if (!ok) throw new Exception(what);
+    if (!ok) throw new InvalidOperationException(what);
 }
 
 static byte[] Blur(byte[] img, double sigma)

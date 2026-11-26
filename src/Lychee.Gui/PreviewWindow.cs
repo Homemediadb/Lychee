@@ -5,10 +5,10 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 using WinRT.Interop;
-using Image = Lychee.Image;
 
 namespace Lychee.Gui;
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "Disposed when the window closes; a Window can't be IDisposable")]
 public sealed partial class PreviewWindow : Window
 {
     readonly Grid root, space;
@@ -59,11 +59,15 @@ public sealed partial class PreviewWindow : Window
         ApplyTheme();
         Settings.Changed += ApplyTheme;
         root.ActualThemeChanged += (_, _) => SyncCaptionColors();
-        Closed += (_, _) => Settings.Changed -= ApplyTheme;
-        _ = Show(path, titleBar);
+        Closed += (_, _) =>
+        {
+            squareLock.Dispose();
+            Settings.Changed -= ApplyTheme;
+        };
+        _ = ShowAsync(path, titleBar);
     }
 
-    async Task Show(string path, TitleBar titleBar)
+    async Task ShowAsync(string path, TitleBar titleBar)
     {
         var views = backdrops.Thumbnails.Prepend(stage).ToList();
         foreach (var v in views) v.ShowWorking();
@@ -74,9 +78,9 @@ public sealed partial class PreviewWindow : Window
             stage.Rotated += a =>
             {
                 foreach (var t in backdrops.Thumbnails) t.Angle = a;
-                saving = Turn(saving, a);
+                saving = TurnAsync(saving, a);
             };
-            async Task Turn(Task before, double a)
+            async Task TurnAsync(Task before, double a)
             {
                 await before;
                 titleBar.Subtitle = "Saving\u2026";

@@ -19,7 +19,7 @@ public sealed class Settings
     public string OcrLanguage { get; set; } = "";
     public double MaxRotation { get; set; } = 180;
 
-    public Task<double> AutoRotate(Lychee.Image result) =>
+    public Task<double> AutoRotateAsync(Lychee.Image result) =>
         AutoRotation ? Lychee.AutoRotation.FindAsync(result, OcrLanguage.Length > 0 ? OcrLanguage : null, MaxRotation) : Task.FromResult(0.0);
 
     public static Settings Current { get; } = Load();
@@ -56,7 +56,10 @@ public sealed class Settings
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
             File.WriteAllText(FilePath, JsonSerializer.Serialize(this, SettingsJson.Default.Settings));
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Unsaved settings still apply until the app closes
+        }
         Changed?.Invoke();
     }
 }

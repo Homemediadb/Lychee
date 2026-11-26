@@ -123,13 +123,13 @@ public static partial class AutoRotation
         try
         {
             // COINIT_MULTITHREADED; already initialized either way is fine
-            CoInitializeEx(0, 0);
+            _ = CoInitializeEx(0, 0);
             Marshal.ThrowExceptionForHR(CoCreateInstance(new("7AB36653-1796-484B-BDFA-E74F1DB7C1DC"), 0, 1, typeof(ISpellCheckerFactory).GUID, out var p));
             var factory = (ISpellCheckerFactory)new StrategyBasedComWrappers().GetOrCreateObjectForComInstance(p, CreateObjectFlags.None);
             Marshal.Release(p);
             if (!factory.IsSupported(language)) return null;
             var checker = factory.CreateSpellChecker(language);
-            var gate = new object();
+            var gate = new Lock();
             return word =>
             {
                 lock (gate)

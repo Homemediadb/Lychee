@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Input;
@@ -8,7 +7,6 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
@@ -17,6 +15,7 @@ using WinRT.Interop;
 
 namespace Lychee.Gui;
 
+[SuppressMessage("Design", "CA1001", Justification = "Disposed when the window closes; a Window can't be IDisposable")]
 public sealed partial class MainWindow : Window
 {
     const string KoFi = "https://ko-fi.com/rlaphoenix";
@@ -74,6 +73,7 @@ public sealed partial class MainWindow : Window
         {
             foreach (var view in Views) view.Close();
             batch?.Close();
+            squareLock.Dispose();
         };
     }
 
@@ -96,8 +96,8 @@ public sealed partial class MainWindow : Window
         try { pairs = (await Task.Run(() => Pairing.MatchFilesAsync(scans))).Pairs; }
         catch { pairs = []; }
         finally { Welcome.Busy = false; }
-        var blacks = pairs.ToDictionary(p => p.White.Path, p => p.Black.Path);
-        var paired = blacks.Values.ToHashSet();
+        var blacks = pairs.ToDictionary(p => p.White.Path, p => p.Black.Path, StringComparer.OrdinalIgnoreCase);
+        var paired = blacks.Values.ToHashSet(StringComparer.OrdinalIgnoreCase);
         Open(scans.Where(s => !paired.Contains(s)), blacks);
     }
 

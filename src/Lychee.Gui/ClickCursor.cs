@@ -15,6 +15,7 @@ static class ClickCursor
     static readonly InputCursor Hand = InputSystemCursor.Create(InputSystemCursorShape.Hand);
 
     [DynamicDependency(DynamicallyAccessedMemberTypes.NonPublicProperties, typeof(UIElement))]
+    [SuppressMessage("Security", "S3011", Justification = "ProtectedCursor is the only way to set another control's cursor")]
     static readonly PropertyInfo CursorProperty = typeof(UIElement).GetProperty("ProtectedCursor", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
     public static void Attach(UIElement root) =>

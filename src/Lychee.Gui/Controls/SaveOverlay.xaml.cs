@@ -36,7 +36,7 @@ public sealed partial class SaveOverlay : UserControl
         if (saving is not { IsCancellationRequested: false }) return;
         (Bar.Value, Bar.IsIndeterminate) = (fraction, false);
         var m = StagePercent().Match(stage);
-        (StageText.Text, PercentText.Text) = m.Success ? (m.Groups[1].Value, m.Groups[2].Value) : (stage, "");
+        (StageText.Text, PercentText.Text) = m.Success ? (m.Groups["stage"].Value, m.Groups["percent"].Value) : (stage, "");
     }
 
     public void ShowDone(string file, params (string Label, string? Value)[] facts)
@@ -102,7 +102,7 @@ public sealed partial class SaveOverlay : UserControl
         XButton.IsEnabled = name != "Cancelling";
     }
 
-    [GeneratedRegex(@"^(.*?)\s*(\d+\s*%)$")] private static partial Regex StagePercent();
+    [GeneratedRegex(@"^(?<stage>.*?)\s*(?<percent>\d+\s*%)$", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 1000)] private static partial Regex StagePercent();
 
     void OnFileTextSizeChanged(object sender, SizeChangedEventArgs e) => DetailText.MaxWidth = Math.Max(380, e.NewSize.Width - 12);
 

@@ -11,6 +11,7 @@ public sealed partial class WelcomeView : UserControl
 
     public bool Busy
     {
+        get => Spinner.IsActive;
         set => (Spinner.IsActive, Spinner.Visibility, Steps.Visibility) = (value, value ? Visibility.Visible : Visibility.Collapsed, value ? Visibility.Collapsed : Visibility.Visible);
     }
 

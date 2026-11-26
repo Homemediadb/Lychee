@@ -9,7 +9,6 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.Foundation;
 using Windows.UI;
-using Image = Lychee.Image;
 
 namespace Lychee.Gui.Controls;
 
@@ -63,10 +62,13 @@ public sealed partial class StageView : UserControl
 
     public bool Highlight
     {
-        get => highlight;
-        set { highlight = value; Apply(); }
+        get;
+        set
+        {
+            field = value;
+            Apply();
+        }
     }
-    bool highlight;
 
     public bool Busy
     {
@@ -126,6 +128,7 @@ public sealed partial class StageView : UserControl
 
     public string Status
     {
+        get => StatusText.Text;
         set
         {
             (StatusText.Text, StatusBadge.Visibility) = (value, value.Length > 0 ? Visibility.Visible : Visibility.Collapsed);
@@ -196,7 +199,7 @@ public sealed partial class StageView : UserControl
         Canvas.SetTop(Frame, y0 - px);
         (Frame.Width, Frame.Height, Frame.StrokeThickness) = (f.W * zoom / DpiScale + 2 * px, f.H * zoom / DpiScale + 2 * px, px);
         (FrameTurn.Angle, FrameTurn.CenterX, FrameTurn.CenterY) = (angle, zoom * qx + px, zoom * qy + px);
-        if (Interactive && highlight && reference is { } r && (originX, originY, shownW, shownH) != r)
+        if (Interactive && Highlight && reference is { } r && (originX, originY, shownW, shownH) != r)
         {
             double k = zoom * f.W / shownW / DpiScale;
             double hx = x0 + (r.X - originX) * k, hy = y0 + (r.Y - originY) * k;

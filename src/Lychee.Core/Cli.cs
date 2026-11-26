@@ -34,9 +34,10 @@ public static class Cli
         bool autoRotation = true;
         double maxRotation = 180;
         var into = images;
-        for (int i = 0; i < args.Length; i++)
+        var queue = new Queue<string>(args);
+        while (queue.TryDequeue(out var arg))
         {
-            switch (args[i])
+            switch (arg)
             {
                 case "-h" or "--help" or "/?":
                     output.WriteLine(Usage);
@@ -45,8 +46,7 @@ public static class Cli
                     into = blacks;
                     break;
                 case "-o" or "--outdir":
-                    if (++i == args.Length) return Fail("-o needs a folder");
-                    outDir = args[i];
+                    if (!queue.TryDequeue(out outDir)) return Fail("-o needs a folder");
                     into = images;
                     break;
                 case "--no-auto-rotation":
@@ -54,21 +54,21 @@ public static class Cli
                     into = images;
                     break;
                 case "--ocr-language":
-                    if (++i == args.Length) return Fail("--ocr-language needs a language tag");
+                    if (!queue.TryDequeue(out var tag)) return Fail("--ocr-language needs a language tag");
                     var tags = AutoRotation.Languages.Select(l => l.Tag).ToList();
-                    language = tags.FirstOrDefault(t => t.Equals(args[i], StringComparison.OrdinalIgnoreCase));
-                    if (language is null) return Fail($"no OCR language {args[i]} is installed (installed: {(tags.Count > 0 ? string.Join(", ", tags) : "none")})");
+                    language = tags.Find(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase));
+                    if (language is null) return Fail($"no OCR language {tag} is installed (installed: {(tags.Count > 0 ? string.Join(", ", tags) : "none")})");
                     into = images;
                     break;
                 case "--max-rotation":
-                    if (++i == args.Length || !double.TryParse(args[i], System.Globalization.CultureInfo.InvariantCulture, out maxRotation) || maxRotation is < 0 or > 180)
+                    if (!queue.TryDequeue(out var degrees) || !double.TryParse(degrees, System.Globalization.CultureInfo.InvariantCulture, out maxRotation) || maxRotation is < 0 or > 180)
                         return Fail("--max-rotation needs degrees from 0 to 180");
                     into = images;
                     break;
                 case var a when a.StartsWith('-') && a.Length > 1:
                     return Fail($"unknown option {a}");
                 default:
-                    into.Add(args[i]);
+                    into.Add(arg);
                     break;
             }
         }

@@ -10,11 +10,11 @@ using Windows.Graphics;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
-using Image = Lychee.Image;
 
 namespace Lychee.Gui;
 
 // One at a time: a full-size scan takes a lot of memory
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "Disposed when the window closes; a Window can't be IDisposable")]
 public sealed partial class BatchWindow : Window
 {
     readonly Queue<BatchRow> waiting = new();
@@ -64,9 +64,9 @@ public sealed partial class BatchWindow : Window
         (AppWindow.TitleBar.ButtonForegroundColor, AppWindow.TitleBar.ButtonInactiveForegroundColor) = (fg, fg);
     }
 
-    async void OnBrowse(object sender, RoutedEventArgs e) => await PickFolder();
+    async void OnBrowse(object sender, RoutedEventArgs e) => await PickFolderAsync();
 
-    async Task<bool> PickFolder()
+    async Task<bool> PickFolderAsync()
     {
         var picker = new FolderPicker();
         picker.FileTypeFilter.Add("*");
@@ -120,7 +120,7 @@ public sealed partial class BatchWindow : Window
         Busy(scans.Count > 1 ? $"Pairing {scans.Count} scans\u2026" : "Adding the scan\u2026", scans.Count);
         try
         {
-            try { added = await Pair(scans, token); }
+            try { added = await PairAsync(scans, token); }
             catch (OperationCanceledException) { added = []; }
             if (!token.IsCancellationRequested)
                 foreach (var row in added)
@@ -162,15 +162,15 @@ public sealed partial class BatchWindow : Window
         ShowProgress();
     }
 
-    async Task<List<BatchRow>> Pair(List<string> paths, CancellationToken cancel)
+    static async Task<List<BatchRow>> PairAsync(List<string> paths, CancellationToken cancel)
     {
         var (pairs, unmatched, failed) = await Task.Run(() => Pairing.MatchFilesAsync(paths, cancel), cancel);
         cancel.ThrowIfCancellationRequested();
-        var rows = new List<BatchRow>();
-        foreach (var (w, b) in pairs) rows.Add(new BatchRow(w, b.Path));
-        foreach (var u in unmatched) rows.Add(new BatchRow(u));
-        foreach (var (p, error) in failed) rows.Add(BatchRow.Failed(p, error));
-        return [.. rows.OrderBy(r => paths.IndexOf(r.Path))];
+        var found = new List<BatchRow>();
+        foreach (var (w, b) in pairs) found.Add(new BatchRow(w, b.Path));
+        foreach (var u in unmatched) found.Add(new BatchRow(u));
+        foreach (var (p, error) in failed) found.Add(BatchRow.Failed(p, error));
+        return [.. found.OrderBy(r => paths.IndexOf(r.Path))];
     }
 
     void OnCancel(object sender, RoutedEventArgs e)
@@ -289,7 +289,7 @@ sealed class BatchRow
                         row.Step("Auto rotating\u2026");
                         _ = row.ShowAsync(result);
                         var turned = result;
-                        result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotate(turned)), closing);
+                        result = await Task.Run(async () => turned.Rotated(await Settings.Current.AutoRotateAsync(turned)), closing);
                         closing.ThrowIfCancellationRequested();
                     }
                     var dst = OutputPath(folder, results.Count > 1 ? next + 1 : null);
@@ -345,7 +345,7 @@ sealed class DiscRow
     readonly TextBlock size = Caption(""), file = Caption("");
     readonly TextBlock step = Caption("");
     readonly FontIcon copyIcon = Icon("\uE8C8");
-    readonly Button copy, stage, view;
+    readonly Button copy, view;
     readonly StackPanel buttons = new() { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     string? output;
 
@@ -367,7 +367,7 @@ sealed class DiscRow
             Children = { status, preview, text, right },
         };
         copy = new Button { Content = copyIcon, Padding = new Thickness(9, 8, 9, 8) };
-        stage = new Button { Content = Labelled("\uE8A1", "Preview") };
+        var stage = new Button { Content = Labelled("\uE8A1", "Preview") };
         view = new Button { Content = Labelled("\uE8A7", "Open") };
         Tip(copy, "Copy", "Copy the result to the clipboard, with transparency");
         Tip(stage, "Preview", "The result on a stage of its own, with the backdrops beside it");
@@ -420,6 +420,7 @@ sealed class DiscRow
 
     public string Label
     {
+        get => label.Text;
         set => Show(label, value);
     }
 
@@ -483,7 +484,10 @@ sealed class DiscRow
             });
             if (size.Visibility == Visibility.Collapsed) Describe(width, height, dpi, bytes);
         }
-        catch (Exception) { }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // The details are shown once the scan is opened instead
+        }
     }
 
     public void Fail(string message)

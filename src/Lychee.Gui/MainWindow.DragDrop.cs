@@ -9,7 +9,7 @@ public sealed partial class MainWindow
     bool dropAccepted;
     Microsoft.UI.Dispatching.DispatcherQueueTimer? dragLeft;
 
-    bool DragArrived(IReadOnlyCollection<string> paths)
+    bool DragArrived(List<string> paths)
     {
         dragLeft?.Stop();
         if (DropZone.IsShown) return dropAccepted;
@@ -42,7 +42,7 @@ public sealed partial class MainWindow
         if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
         var deferral = e.GetDeferral();
         var items = await e.DataView.GetStorageItemsAsync();
-        e.AcceptedOperation = DragArrived(items.OfType<StorageFile>().Select(f => f.Path).ToList()) ? DataPackageOperation.Copy : DataPackageOperation.None;
+        e.AcceptedOperation = DragArrived([.. items.OfType<StorageFile>().Select(f => f.Path)]) ? DataPackageOperation.Copy : DataPackageOperation.None;
         deferral.Complete();
     }
 

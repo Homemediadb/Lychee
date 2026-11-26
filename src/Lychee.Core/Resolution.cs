@@ -16,10 +16,12 @@ public static class Resolution
             if (head.AsSpan().SequenceEqual((byte[])[0x89, (byte)'P', (byte)'N', (byte)'G', 13, 10, 26, 10])) return Png(s);
             if (head[0] == 0xFF && head[1] == 0xD8) return Jpeg(s);
             if (Encoding.ASCII.GetString(head, 0, 4) == "RIFF") return Webp(s);
-            if (head[0] == 'B' && head[1] == 'M') return Bmp(s);
+            return head[0] == 'B' && head[1] == 'M' ? Bmp(s) : null;
         }
-        catch (Exception e) when (e is EndOfStreamException or IOException or ArgumentException) { }
-        return null;
+        catch (Exception e) when (e is EndOfStreamException or IOException or ArgumentException)
+        {
+            return null;
+        }
     }
 
     static double? Png(Stream s)

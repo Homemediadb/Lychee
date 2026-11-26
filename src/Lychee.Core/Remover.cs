@@ -23,7 +23,12 @@ public static class Remover
 
     public static IEnumerable<(Image Matted, Ellipse Outer)> Mattes(Image rgb, Image? black = null, IProgress<Step>? progress = null)
     {
-        if (rgb.Channels != 3) throw new ArgumentException("expected an RGB scan");
+        if (rgb.Channels != 3) throw new ArgumentException("expected an RGB scan", nameof(rgb));
+        return MattesOf(rgb, black, progress);
+    }
+
+    static IEnumerable<(Image Matted, Ellipse Outer)> MattesOf(Image rgb, Image? black, IProgress<Step>? progress)
+    {
         progress?.Report(new("Reading the background"));
         int w = rgb.Width, h = rgb.Height;
         var px = rgb.Pixels;
@@ -83,7 +88,7 @@ public static class Remover
                 for (int ch = 0; ch < 3; ch++) atb[ch, a] += f[a] * px[3 * i + ch];
             }
         }
-        var coef = Enumerable.Range(0, 3).Select(ch => Solve(ata, Enumerable.Range(0, 6).Select(a => atb[ch, a]).ToArray())).ToArray();
+        var coef = Enumerable.Range(0, 3).Select(ch => Solve(ata, [.. Enumerable.Range(0, 6).Select(a => atb[ch, a])])).ToArray();
         double Light(int x, int y, int ch)
         {
             double u = x / scale, v = y / scale;
@@ -110,11 +115,9 @@ public static class Remover
         for (int i = 0; i < w * h; i++) if (fromCorners[i]) signed.Add(dark[i]);
         var vals = signed.ToArray();
         if (vals.Length == 0) throw new InvalidDataException("corners are not a light background");
-        signed = null;
         double med = SortedMedian(vals);
         for (int i = 0; i < vals.Length; i++) vals[i] = (float)Math.Abs(vals[i] - med);
         double mad = SortedMedian(vals);
-        vals = null;
         t = Math.Max(t, med + 4 * 1.4826 * mad);
         Parallel.For(0, w * h, i => dark[i] = Math.Clamp(dark[i], 0, 1));
         // Invisible shading counts too, or a faint band could join the disc to the page edge

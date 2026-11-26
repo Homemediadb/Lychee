@@ -5,7 +5,7 @@ namespace Lychee.Gui;
 
 public sealed partial class SettingsPage : UserControl
 {
-    bool loading;
+    readonly bool loading;
     readonly List<string> languageTags = [];
 
     public SettingsPage()
