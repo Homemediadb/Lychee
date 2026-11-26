@@ -8,6 +8,7 @@ obj/
 dist/
 
 *.png
+!/screenshot.png
 *.jpg
 *.jpeg
 *.webp
