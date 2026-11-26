@@ -2,7 +2,9 @@ namespace Lychee;
 
 public static class Cli
 {
-    public const string Usage = """
+    public const string Repository = "https://github.com/Homemediadb/Lychee";
+
+    public const string Usage = $"""
         usage: Lychee IMAGE [IMAGE ...] [-b BLACK [BLACK ...]] [-o OUTDIR]
                       [--no-auto-rotation] [--ocr-language TAG] [--max-rotation DEG]
 
@@ -25,6 +27,7 @@ public static class Cli
           -h, --help             this help
 
         Run without arguments (or not from a console) to open the app.
+        Source, releases and issues: {Repository}
         """;
 
     sealed record Options(

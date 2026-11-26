@@ -19,6 +19,7 @@ public sealed partial class AboutPage : UserControl
         ("Ctrl + Tab", "Next tab"),
         ("Ctrl + Shift + Tab", "Previous tab"),
         ("Ctrl + 1\u20139", "Go to tab"),
+        ("F1", "Open Lychee on GitHub"),
     ];
 
     public AboutPage()

@@ -25,5 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and auto rotation) and shows the disc as each step leaves it, on the stage and in Batch Mode's rows; the stage
   can't be turned by hand until auto rotation is done.
 - Windows installer.
+- Links to the project on GitHub (github.com/Homemediadb/Lychee): the About page links to it, its license,
+  issues and third-party notices, F1 opens it, and `Lychee --help` ends with its address.
 
-[Unreleased]: https://github.com/rlaphoenix/Lychee/commits/main
+[Unreleased]: https://github.com/Homemediadb/Lychee/commits/main

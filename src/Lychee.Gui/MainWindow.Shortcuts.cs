@@ -28,6 +28,7 @@ public sealed partial class MainWindow
         });
         Add(VirtualKey.Tab, Ctrl, () => CycleTab(1));
         Add(VirtualKey.Tab, Ctrl | Shift, () => CycleTab(-1));
+        Add(VirtualKey.F1, None, () => _ = Windows.System.Launcher.LaunchUriAsync(new Uri(Cli.Repository)));
         for (int i = 0; i < 9; i++)
         {
             int index = i;

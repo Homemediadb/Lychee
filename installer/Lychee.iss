@@ -4,7 +4,7 @@
 #endif
 #define MyAppId         "{B7E2C9A4-5D31-4F8E-A6C0-3E9D1F27B854}"
 #define MyAppPublisher  "rlaphoenix"
-#define MyAppURL        "https://github.com/rlaphoenix/Lychee"
+#define MyAppURL        "https://github.com/Homemediadb/Lychee"
 #define MyAppExeName    "Lychee.exe"
 
 [Setup]
