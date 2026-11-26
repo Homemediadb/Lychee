@@ -97,7 +97,7 @@ public sealed partial class StageView : UserControl
         (originX, originY, shownW, shownH) = (result.OriginX, result.OriginY, result.Width, result.Height);
         (full, small) = (f, s);
         fullBitmap = Bitmap(fullBitmap, f);
-        smallBitmap = ReferenceEquals(s, f) ? fullBitmap : Bitmap(smallBitmap, s);
+        smallBitmap = ReferenceEquals(s.Px, f.Px) ? fullBitmap : Bitmap(smallBitmap, s);
         Picture.Source = null;
         (Spinner.IsActive, Picture.Opacity, Message.Visibility) = (busy, 1, Visibility.Collapsed);
         Frame.Visibility = Interactive ? Visibility.Visible : Visibility.Collapsed;
